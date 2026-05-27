@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,80 +27,59 @@ class HomeScreen extends ConsumerWidget {
             );
           }
 
-          final profile = profiles.first;
-
-          final photos =
-              List<String>.from(profile['photoUrls'] ?? []);
-
-          final photoUrl =
-              photos.isNotEmpty ? photos.first : null;
+          final currentProfile = profiles.first;
 
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
                 Expanded(
-                  child: Dismissible(
-                    key: ValueKey(profile['uid']),
-                    direction: DismissDirection.horizontal,
-                    confirmDismiss: (direction) async {
-                      if (direction == DismissDirection.startToEnd) {
-                        final isMatch = await ref
-                            .read(homeRepositoryProvider)
-                            .likeUser(profile['uid']);
+                  child: AppinioSwiper(
+                    cardCount: profiles.length,
+                    onSwipeEnd: (previousIndex, targetIndex, activity) async {
+                      final profile = profiles[previousIndex];
+                      debugPrint('activity: $activity');
+                      debugPrint('direction: ${activity.direction}');
 
-                        ref.invalidate(profilesProvider);
+                      if (activity is Swipe) {
+                        if (activity.direction == AxisDirection.right) {
+                          final isMatch = await ref
+                              .read(homeRepositoryProvider)
+                              .likeUser(profile['uid']);
 
-                        if (isMatch && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('У вас новый матч 🔥'),
-                            ),
-                          );
+                          ref.invalidate(profilesProvider);
+
+                          if (isMatch && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('У вас новый матч 🔥'),
+                              ),
+                            );
+                          }
                         }
-                      } else {
-                        await ref
-                            .read(homeRepositoryProvider)
-                            .passUser(profile['uid']);
 
-                        ref.invalidate(profilesProvider);
+                        if (activity.direction == AxisDirection.left) {
+                          await ref
+                              .read(homeRepositoryProvider)
+                              .passUser(profile['uid']);
+
+                          ref.invalidate(profilesProvider);
+                        }
                       }
-
-                      return false;
                     },
-                    background: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.only(left: 32),
-                      child: const Icon(
-                        Icons.favorite,
-                        size: 56,
-                      ),
-                    ),
-                    secondaryBackground: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 32),
-                      child: const Icon(
-                        Icons.close,
-                        size: 56,
-                      ),
-                    ),
-                    child: GestureDetector(
-                      onTap: () {
-                        context.push(
-                          '/profile-details',
-                          extra: profile,
-                        );
-                      },
-                      child: ProfileCard(profile: profile),
-                    ),
+                    cardBuilder: (context, index) {
+                      final profile = profiles[index];
+
+                      return GestureDetector(
+                        onTap: () {
+                          context.push(
+                            '/profile-details',
+                            extra: profile,
+                          );
+                        },
+                        child: ProfileCard(profile: profile),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -113,7 +92,7 @@ class HomeScreen extends ConsumerWidget {
                       onTap: () async {
                         await ref
                             .read(homeRepositoryProvider)
-                            .passUser(profile['uid']);
+                            .passUser(currentProfile['uid']);
 
                         ref.invalidate(profilesProvider);
                       },
@@ -123,7 +102,7 @@ class HomeScreen extends ConsumerWidget {
                       onTap: () async {
                         final isMatch = await ref
                             .read(homeRepositoryProvider)
-                            .likeUser(profile['uid']);
+                            .likeUser(currentProfile['uid']);
 
                         ref.invalidate(profilesProvider);
 
