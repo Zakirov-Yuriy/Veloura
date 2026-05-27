@@ -13,6 +13,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(profilesProvider);
+    final swiperController = AppinioSwiperController();
 
     return Scaffold(
       appBar: AppBar(
@@ -35,7 +36,10 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: AppinioSwiper(
+                    controller: swiperController,
                     cardCount: profiles.length,
+                    backgroundCardCount: 3,
+                    swipeOptions: const SwipeOptions.all(),
                     onSwipeEnd: (previousIndex, targetIndex, activity) async {
                       final profile = profiles[previousIndex];
                       debugPrint('activity: $activity');
@@ -89,31 +93,14 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     SwipeActionButton(
                       icon: Icons.close,
-                      onTap: () async {
-                        await ref
-                            .read(homeRepositoryProvider)
-                            .passUser(currentProfile['uid']);
-
-                        ref.invalidate(profilesProvider);
+                      onTap: () {
+                        swiperController.swipeLeft();
                       },
                     ),
                     SwipeActionButton(
                       icon: Icons.favorite,
-                      onTap: () async {
-                        final isMatch = await ref
-                            .read(homeRepositoryProvider)
-                            .likeUser(currentProfile['uid']);
-
-                        ref.invalidate(profilesProvider);
-
-                        if (isMatch && context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            const SnackBar(
-                              content: Text('У вас новый матч 🔥'),
-                            ),
-                          );
-                        }
+                      onTap: () {
+                        swiperController.swipeRight();
                       },
                     ),
                   ],
