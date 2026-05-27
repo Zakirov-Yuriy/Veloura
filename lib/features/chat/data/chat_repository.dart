@@ -136,10 +136,34 @@ class ChatRepository {
     });
   }
 
-  Stream<Map<String, dynamic>> getChat(String chatId) {
-    return _firestore.collection('chats').doc(chatId).snapshots().map(
-          (doc) => doc.data() ?? {},
-        );
+  Stream<Map<String, dynamic>> getChat(String chatId) async* {
+    await for (final doc in _firestore.collection('chats').doc(chatId).snapshots()) {
+      final chat = doc.data() ?? {};
+
+      final members = List<String>.from(chat['members'] ?? []);
+
+      if (members.isEmpty) {
+        yield chat;
+        continue;
+      }
+
+      final otherUserId = members.firstWhere(
+        (id) => id != currentUserId,
+        orElse: () => '',
+      );
+
+      if (otherUserId.isEmpty) {
+        yield chat;
+        continue;
+      }
+
+      final userDoc = await _firestore.collection('users').doc(otherUserId).get();
+
+      yield {
+        ...chat,
+        'otherUser': userDoc.data() ?? {},
+      };
+    }
   }
 
   Stream<int> getUnreadChatsCount() {

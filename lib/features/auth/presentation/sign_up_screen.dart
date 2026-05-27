@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/services/fcm_service.dart';
@@ -71,10 +72,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.favorite,
-                  color: pink,
-                  size: 58,
+                SvgPicture.asset(
+                  'assets/images/Logo.svg',
+                  width: 58,
+                  height: 58,
                 ),
                 const SizedBox(height: 34),
                 const Text(

@@ -50,8 +50,15 @@ class _ProfileCardState extends State<ProfileCard> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(16),
         color: Colors.grey.shade900,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(

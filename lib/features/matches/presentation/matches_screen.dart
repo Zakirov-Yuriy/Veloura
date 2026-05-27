@@ -10,23 +10,43 @@ class MatchesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const pink = Color(0xFFFF4F7B);
+
     final matchesAsync = ref.watch(myMatchesProvider);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Матчи'),
+        title: const Text(
+          'Матчи',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0.8,
+        foregroundColor: Colors.black,
       ),
       body: matchesAsync.when(
         data: (matches) {
           if (matches.isEmpty) {
             return const Center(
-              child: Text('Матчей пока нет'),
+              child: Text(
+                'Матчей пока нет',
+                style: TextStyle(color: Colors.black54),
+              ),
             );
           }
 
           return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: matches.length,
-            separatorBuilder: (_, __) => const Divider(),
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              color: Color(0xFFF0F0F0),
+              indent: 76,
+            ),
             itemBuilder: (context, index) {
               final match = matches[index];
               final otherUser =
@@ -34,22 +54,54 @@ class MatchesScreen extends ConsumerWidget {
 
               final photos =
                   List<String>.from(otherUser['photoUrls'] ?? []);
-
-              final photoUrl =
-                  photos.isNotEmpty ? photos.first : null;
+              final photoUrl = photos.isNotEmpty ? photos.first : null;
 
               return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 leading: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: const Color(0xFFF2F2F2),
                   backgroundImage: photoUrl != null
                       ? CachedNetworkImageProvider(photoUrl)
                       : null,
                   child: photoUrl == null
-                      ? const Icon(Icons.person)
+                      ? const Icon(
+                          Icons.person,
+                          color: Colors.black54,
+                        )
                       : null,
                 ),
-                title: Text(otherUser['name'] ?? 'Пользователь'),
-                subtitle: Text(otherUser['city'] ?? ''),
-                trailing: const Icon(Icons.chat),
+                title: Text(
+                  otherUser['name'] ?? 'Пользователь',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  otherUser['city'] ?? '',
+                  style: const TextStyle(
+                    color: Color(0xFF8A8A8A),
+                    fontSize: 13,
+                  ),
+                ),
+                trailing: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: pink,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline,
+                    color: Colors.white,
+                    size: 21,
+                  ),
+                ),
                 onTap: () {
                   context.go('/chat/${match['id']}');
                 },
@@ -59,12 +111,15 @@ class MatchesScreen extends ConsumerWidget {
         },
         loading: () {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: pink),
           );
         },
         error: (error, stackTrace) {
           return Center(
-            child: Text(error.toString()),
+            child: Text(
+              error.toString(),
+              style: const TextStyle(color: Colors.black),
+            ),
           );
         },
       ),

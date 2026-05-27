@@ -9,13 +9,18 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser =
-        FirebaseAuth.instance.currentUser;
+    const pink = Color(0xFFFF4F7B);
+
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       return const Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
-          child: Text('Пользователь не найден'),
+          child: Text(
+            'Пользователь не найден',
+            style: TextStyle(color: Colors.black),
+          ),
         ),
       );
     }
@@ -26,36 +31,45 @@ class ProfileScreen extends StatelessWidget {
           .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor: Colors.white,
             body: Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(color: pink),
             ),
           );
         }
 
-        if (!snapshot.hasData ||
-            !snapshot.data!.exists) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
           return const Scaffold(
+            backgroundColor: Colors.white,
             body: Center(
-              child: Text('Профиль не найден'),
+              child: Text(
+                'Профиль не найден',
+                style: TextStyle(color: Colors.black),
+              ),
             ),
           );
         }
 
-        final data =
-            snapshot.data!.data() as Map<String, dynamic>;
-
-        final photos =
-            List<String>.from(data['photoUrls'] ?? []);
-
-        final photoUrl =
-            photos.isNotEmpty ? photos.first : null;
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final photos = List<String>.from(data['photoUrls'] ?? []);
+        final photoUrl = photos.isNotEmpty ? photos.first : null;
+        final isOnline = data['isOnline'] == true;
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Профиль'),
+            title: const Text(
+              'Профиль',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0.8,
+            foregroundColor: Colors.black,
             actions: [
               IconButton(
                 onPressed: () async {
@@ -67,8 +81,7 @@ class ProfileScreen extends StatelessWidget {
                     'lastSeen': Timestamp.now(),
                   });
 
-                  await FirebaseAuth.instance
-                      .signOut();
+                  await FirebaseAuth.instance.signOut();
 
                   if (context.mounted) {
                     context.go('/sign-in');
@@ -79,81 +92,161 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 70,
-                  backgroundImage: photoUrl != null
-                      ? CachedNetworkImageProvider(
-                          photoUrl,
-                        )
-                      : null,
-                  child: photoUrl == null
-                      ? const Icon(
-                          Icons.person,
-                          size: 70,
-                        )
-                      : null,
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 72,
+                      backgroundColor: const Color(0xFFF2F2F2),
+                      backgroundImage: photoUrl != null
+                          ? CachedNetworkImageProvider(photoUrl)
+                          : null,
+                      child: photoUrl == null
+                          ? const Icon(
+                              Icons.person,
+                              size: 72,
+                              color: Colors.black54,
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: isOnline
+                              ? const Color(0xFF55C99B)
+                              : Colors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
                 Text(
-                  '${data['name']}, ${data['age']}',
+                  '${data['name'] ?? 'Пользователь'}, ${data['age'] ?? ''}',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   data['city'] ?? '',
                   style: const TextStyle(
-                    fontSize: 18,
+                    color: Color(0xFF8A8A8A),
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
-                    borderRadius:
-                        BorderRadius.circular(20),
+                    color: const Color(0xFFF7F7F7),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFFEDEDED),
+                    ),
                   ),
                   child: Text(
-                    data['bio'] ?? '',
+                    data['bio'] ?? 'Описание пока не добавлено',
                     style: const TextStyle(
-                      fontSize: 16,
+                      color: Colors.black87,
+                      fontSize: 15,
+                      height: 1.4,
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.go('/profile-setup');
-                    },
-                    child: const Text('Редактировать профиль'),
-                  ),
+                _ProfileButton(
+                  icon: Icons.edit_outlined,
+                  title: 'Редактировать профиль',
+                  color: pink,
+                  onTap: () => context.go('/profile-setup'),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      context.go('/blocked-users');
-                    },
-                    child: const Text('Заблокированные пользователи'),
-                  ),
+                _ProfileButton(
+                  icon: Icons.block,
+                  title: 'Заблокированные пользователи',
+                  color: Colors.black87,
+                  onTap: () => context.go('/blocked-users'),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _ProfileButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ProfileButton({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: const Color(0xFFEDEDED),
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: color,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFFB8B8B8),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

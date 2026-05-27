@@ -182,73 +182,111 @@ class _ProfileSetupScreenState
 
   @override
   Widget build(BuildContext context) {
+    const pink = Color(0xFFFF4F7B);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Профиль'),
+        title: const Text(
+          'Мой профиль',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0.8,
+        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              'Фотографии',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+
             GestureDetector(
               onTap: isLoading ? null : pickAndUploadImage,
               child: GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: 6,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
                 itemBuilder: (context, index) {
-                  final hasLocalImage = index < selectedImages.length;
-                  final hasUploadedImage = index < uploadedPhotoUrls.length;
+                  final hasLocalImage =
+                      index < selectedImages.length;
+
+                  final hasUploadedImage =
+                      index < uploadedPhotoUrls.length;
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade900,
-                      borderRadius: BorderRadius.circular(16),
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFEAEAEA),
+                      ),
                       image: hasLocalImage
                           ? DecorationImage(
-                              image: FileImage(selectedImages[index]),
+                              image:
+                                  FileImage(selectedImages[index]),
                               fit: BoxFit.cover,
                             )
                           : hasUploadedImage
                               ? DecorationImage(
-                                  image: NetworkImage(uploadedPhotoUrls[index]),
+                                  image: NetworkImage(
+                                    uploadedPhotoUrls[index],
+                                  ),
                                   fit: BoxFit.cover,
                                 )
                               : null,
                     ),
-                    child: !hasLocalImage && !hasUploadedImage
-                        ? const Icon(Icons.add_a_photo)
+                    child: !hasLocalImage &&
+                            !hasUploadedImage
+                        ? const Icon(
+                            Icons.add_a_photo,
+                            color: Color(0xFFB8B8B8),
+                            size: 30,
+                          )
                         : null,
                   );
                 },
               ),
             ),
-            const SizedBox(height: 24),
-            TextField(
+
+            const SizedBox(height: 28),
+
+            _ProfileField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Имя',
-              ),
+              hint: 'Имя',
             ),
-            const SizedBox(height: 12),
-            TextField(
+
+            const SizedBox(height: 14),
+
+            _ProfileField(
               controller: ageController,
+              hint: 'Возраст',
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Возраст',
-              ),
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 14),
+
             DropdownButtonFormField<String>(
               value: gender,
-              decoration: const InputDecoration(
-                labelText: 'Пол',
-              ),
+              decoration: _inputDecoration('Пол'),
               items: const [
                 DropdownMenuItem(
                   value: 'male',
@@ -267,12 +305,12 @@ class _ProfileSetupScreenState
                 });
               },
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 14),
+
             DropdownButtonFormField<String>(
               value: lookingFor,
-              decoration: const InputDecoration(
-                labelText: 'Кого ищу',
-              ),
+              decoration: _inputDecoration('Кого ищу'),
               items: const [
                 DropdownMenuItem(
                   value: 'male',
@@ -291,59 +329,134 @@ class _ProfileSetupScreenState
                 });
               },
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 14),
+
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: _ProfileField(
                     controller: minAgeController,
+                    hint: 'Возраст от',
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Возраст от',
-                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
+                  child: _ProfileField(
                     controller: maxAgeController,
+                    hint: 'Возраст до',
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Возраст до',
-                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
+
+            const SizedBox(height: 14),
+
+            _ProfileField(
               controller: cityController,
-              decoration: const InputDecoration(
-                labelText: 'Город',
-              ),
+              hint: 'Город',
             ),
-            const SizedBox(height: 12),
-            TextField(
+
+            const SizedBox(height: 14),
+
+            _ProfileField(
               controller: bioController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'О себе',
-              ),
+              hint: 'О себе',
+              maxLines: 5,
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 28),
+
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 56,
               child: ElevatedButton(
                 onPressed: isLoading ? null : saveProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: pink,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 child: isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Сохранить профиль'),
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Сохранить профиль',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration(String hint) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(
+      color: Color(0xFFB8B8B8),
+    ),
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 18,
+      vertical: 16,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(
+        color: Color(0xFFE8E8E8),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(
+        color: Color(0xFFFF4F7B),
+      ),
+    ),
+  );
+}
+
+class _ProfileField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final TextInputType? keyboardType;
+  final int maxLines;
+
+  const _ProfileField({
+    required this.controller,
+    required this.hint,
+    this.keyboardType,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      style: const TextStyle(
+        color: Colors.black,
+      ),
+      decoration: _inputDecoration(hint),
     );
   }
 }
