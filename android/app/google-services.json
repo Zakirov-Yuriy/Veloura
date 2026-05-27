@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "536073911138",
+    "project_id": "veloura-21064",
+    "storage_bucket": "veloura-21064.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536073911138:android:2287329aa686943f760a3b",
+        "android_client_info": {
+          "package_name": "com.example.veloura"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCilCC3hZkaQ08rtaelHtJigAoFmL0To0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
