@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/sign_in_screen.dart';
@@ -8,17 +9,13 @@ import '../../features/chat/presentation/chats_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/profile_details_screen.dart';
 import '../../features/main/presentation/main_shell_screen.dart';
-import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/safety/presentation/blocked_users_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/onboarding',
+  initialLocation:
+      FirebaseAuth.instance.currentUser == null ? '/sign-in' : '/home',
   routes: [
-    GoRoute(
-      path: '/onboarding',
-      builder: (context, state) => const OnboardingScreen(),
-    ),
     GoRoute(
       path: '/sign-in',
       builder: (context, state) => const SignInScreen(),
