@@ -46,7 +46,6 @@ dependencies:
   firebase_messaging: ^16.2.2
   appinio_swiper: ^2.1.1
   flutter_svg: ^2.0.0
-  bottom_navigation_animated_notch_bar: ^1.1.0
 
 dev_dependencies:
   flutter_test:
