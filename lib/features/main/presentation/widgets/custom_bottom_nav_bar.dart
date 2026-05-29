@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/luxury_theme.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -14,111 +15,71 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const navItems = [
-      {
-        'icon': Icons.local_fire_department,
-        'label': 'Анкеты',
-        'activeColor': Color(0xFFFF6B6B),
-      },
-      {
-        'icon': Icons.favorite,
-        'label': 'Матчи',
-        'activeColor': Color(0xFFFF1744),
-      },
-      {
-        'icon': Icons.message,
-        'label': 'Чаты',
-        'activeColor': Color(0xFFFFFFFF),
-      },
-      {
-        'icon': Icons.person,
-        'label': 'Профиль',
-        'activeColor': Color(0xFFFFD700),
-      },
+    const icons = [
+      Icons.local_fire_department_outlined,
+      Icons.favorite_border,
+      Icons.chat_bubble_outline,
+      Icons.person_outline,
+     
     ];
 
-    return Container(
-      height: 72,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFF222E3A),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(
-          navItems.length,
-          (index) {
-            final item = navItems[index];
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: LuxuryPanel(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        radius: 28,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(icons.length, (index) {
             final isActive = index == currentIndex;
-            final color = isActive
-                ? item['activeColor'] as Color
-                : const Color(0xFF666666);
-
-            Widget iconWidget = Icon(
-              item['icon'] as IconData,
-              color: color,
-              size: 28,
-            );
-
-            // Добавляем счетчик для вкладки Чаты
-            if (index == 2 && unreadChatsCount > 0) {
-              iconWidget = Stack(
-                children: [
-                  iconWidget,
-                  Positioned(
-                    right: -4,
-                    top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: Colors.pink,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        unreadChatsCount.toString(),
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
+            final color = isActive ? LuxuryColors.gold : const Color(0xFFB7B7B7);
+            final icon = Icon(icons[index], color: color, size: 27);
 
             return GestureDetector(
               onTap: () => onTap(index),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  iconWidget,
-                  const SizedBox(height: 4),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: isActive
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ],
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                width: 54,
+                height: 42,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (isActive)
+                      Container(
+                        width: 48,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            colors: [LuxuryColors.gold.withOpacity(0.28), Colors.transparent],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    index == 2 && unreadChatsCount > 0
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              icon,
+                              Positioned(
+                                right: -8,
+                                top: -7,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(color: LuxuryColors.gold, shape: BoxShape.circle),
+                                  child: Text(
+                                    unreadChatsCount.toString(),
+                                    style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : icon,
+                  ],
+                ),
               ),
             );
-          },
+          }),
         ),
       ),
     );

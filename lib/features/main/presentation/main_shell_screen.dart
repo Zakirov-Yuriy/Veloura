@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../chat/presentation/chats_screen.dart';
 import '../../chat/presentation/providers/chat_provider.dart';
 import '../../home/presentation/home_screen.dart';
@@ -18,34 +17,19 @@ class MainShellScreen extends ConsumerStatefulWidget {
 class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   int currentIndex = 0;
 
-  final pages = const [
-    HomeScreen(),
-    MatchesScreen(),
-    ChatsScreen(),
-    ProfileScreen(),
-  ];
+  final pages = const [HomeScreen(), MatchesScreen(), ChatsScreen(), ProfileScreen()];
 
   @override
   Widget build(BuildContext context) {
-    final unreadChatsAsync =
-        ref.watch(unreadChatsCountProvider);
-
-    final unreadChatsCount =
-        unreadChatsAsync.value ?? 0;
+    final unreadChatsCount = ref.watch(unreadChatsCountProvider).value ?? 0;
 
     return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
-        children: pages,
-      ),
+      extendBody: true,
+      body: IndexedStack(index: currentIndex, children: pages),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: currentIndex,
         unreadChatsCount: unreadChatsCount,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => currentIndex = index),
       ),
     );
   }

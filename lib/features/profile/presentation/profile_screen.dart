@@ -3,187 +3,129 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/luxury_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const pink = Color(0xFFFF4F7B);
-
     final currentUser = FirebaseAuth.instance.currentUser;
-
     if (currentUser == null) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Text(
-            'Пользователь не найден',
-            style: TextStyle(color: Colors.black),
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('Пользователь не найден')));
     }
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Colors.white,
-            body: Center(
-              child: CircularProgressIndicator(color: pink),
-            ),
-          );
+          return const Scaffold(body: LuxuryScreen(child: Center(child: CircularProgressIndicator(color: LuxuryColors.gold))));
         }
-
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Scaffold(
-            backgroundColor: Colors.white,
-            body: Center(
-              child: Text(
-                'Профиль не найден',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          );
+          return const Scaffold(body: LuxuryScreen(child: Center(child: Text('Профиль не найден'))));
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final photos = List<String>.from(data['photoUrls'] ?? []);
         final photoUrl = photos.isNotEmpty ? photos.first : null;
-        final isOnline = data['isOnline'] == true;
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            title: const Text(
-              'Профиль',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0.8,
-            foregroundColor: Colors.black,
-            actions: [
-              IconButton(
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(currentUser.uid)
-                      .update({
-                    'isOnline': false,
-                    'lastSeen': Timestamp.now(),
-                  });
-
-                  await FirebaseAuth.instance.signOut();
-
-                  if (context.mounted) {
-                    context.go('/sign-in');
-                  }
-                },
-                icon: const Icon(Icons.logout),
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-            child: Column(
-              children: [
-                Stack(
+          body: LuxuryScreen(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 104),
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 72,
-                      backgroundColor: const Color(0xFFF2F2F2),
-                      backgroundImage: photoUrl != null
-                          ? CachedNetworkImageProvider(photoUrl)
-                          : null,
-                      child: photoUrl == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 72,
-                              color: Colors.black54,
-                            )
-                          : null,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
+                        IconButton(onPressed: () => context.go('/profile-setup'), icon: const Icon(Icons.edit_outlined)),
+                      ],
                     ),
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: isOnline
-                              ? const Color(0xFF55C99B)
-                              : Colors.grey,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 3,
+                    const SizedBox(height: 16),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 156,
+                          height: 156,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: LuxuryColors.gold, width: 2.0)),
+                          child: CircleAvatar(
+                            backgroundColor: LuxuryColors.black2,
+                            backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
+                            child: photoUrl == null ? const Icon(Icons.person, size: 76, color: LuxuryColors.gold) : null,
                           ),
                         ),
+                        Positioned(
+                          right: 2,
+                          bottom: 8,
+                          child: Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(shape: BoxShape.circle, gradient: luxuryGradient, border: Border.all(color: LuxuryColors.black, width: 3)),
+                            child: const Icon(Icons.workspace_premium, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${data['name'] ?? 'Пользователь'}, ${data['age'] ?? ''}',
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.verified, color: LuxuryColors.gold, size: 20),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 14, color: Colors.white70),
+                        Text(data['city'] ?? '', style: const TextStyle(color: Colors.white70)),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    LuxuryPanel(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: const [
+                          _Stat(value: '89', label: 'Лайков'),
+                          _Stat(value: '12', label: 'Матчей'),
+                          _Stat(value: '23', label: 'Друзей'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    LuxuryPanel(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          _ProfileMenu(icon: Icons.workspace_premium, title: 'Премиум аккаунт', onTap: () {}),
+                          _ProfileMenu(icon: Icons.image_outlined, title: 'Мои фото', onTap: () => context.go('/profile-setup')),
+                          _ProfileMenu(icon: Icons.star_border, title: 'Избранные', onTap: () {}),
+                          _ProfileMenu(icon: Icons.settings_outlined, title: 'Настройки', onTap: () => context.go('/blocked-users')),
+                          _ProfileMenu(
+                            icon: Icons.logout,
+                            title: 'Выйти',
+                            onTap: () async {
+                              await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({'isOnline': false, 'lastSeen': Timestamp.now()});
+                              await FirebaseAuth.instance.signOut();
+                              if (context.mounted) context.go('/sign-in');
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
-                Text(
-                  '${data['name'] ?? 'Пользователь'}, ${data['age'] ?? ''}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  data['city'] ?? '',
-                  style: const TextStyle(
-                    color: Color(0xFF8A8A8A),
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F7F7),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: const Color(0xFFEDEDED),
-                    ),
-                  ),
-                  child: Text(
-                    data['bio'] ?? 'Описание пока не добавлено',
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _ProfileButton(
-                  icon: Icons.edit_outlined,
-                  title: 'Редактировать профиль',
-                  color: pink,
-                  onTap: () => context.go('/profile-setup'),
-                ),
-                const SizedBox(height: 12),
-                _ProfileButton(
-                  icon: Icons.block,
-                  title: 'Заблокированные пользователи',
-                  color: Colors.black87,
-                  onTap: () => context.go('/blocked-users'),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -192,61 +134,38 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class _ProfileButton extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Color color;
-  final VoidCallback onTap;
+class _Stat extends StatelessWidget {
+  final String value;
+  final String label;
 
-  const _ProfileButton({
-    required this.icon,
-    required this.title,
-    required this.color,
-    required this.onTap,
-  });
+  const _Stat({required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: const Color(0xFFEDEDED),
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFFB8B8B8),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: LuxuryColors.gold, fontSize: 18, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+class _ProfileMenu extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _ProfileMenu({required this.icon, required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: LuxuryColors.gold),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.white),
+      onTap: onTap,
     );
   }
 }
