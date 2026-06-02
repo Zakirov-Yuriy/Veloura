@@ -25,7 +25,7 @@ class HomeScreen extends ConsumerWidget {
               }
 
               return Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 104),
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 64),
                 child: Column(
                   children: [
                     Row(
@@ -66,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
                         },
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 42),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

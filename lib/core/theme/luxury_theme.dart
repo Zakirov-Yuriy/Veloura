@@ -33,7 +33,7 @@ class LuxuryScreen extends StatelessWidget {
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           center: Alignment.topCenter,
-          radius: 0,
+          radius: 1.1,
           colors: [Color(0xFF1B1B1B), Color(0xFF070707)],
         ),
       ),
