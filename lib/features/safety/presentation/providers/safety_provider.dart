@@ -13,3 +13,9 @@ final blockedUsersProvider =
       .read(safetyRepositoryProvider)
       .getBlockedUsers();
 });
+
+// Реактивный набор id заблокированных пользователей для фильтрации
+// чатов и матчей.
+final blockedUserIdsProvider = StreamProvider<Set<String>>((ref) {
+  return ref.read(safetyRepositoryProvider).blockedUserIds();
+});

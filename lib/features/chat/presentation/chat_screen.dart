@@ -2,7 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../core/utils/presence.dart';
+import '../../safety/presentation/providers/safety_provider.dart';
 import 'providers/chat_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -33,6 +36,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  Future<void> reportUser(String otherUserId) async {
+    await ref.read(safetyRepositoryProvider).reportUser(
+          reportedUserId: otherUserId,
+          reason: 'inappropriate_profile',
+        );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Жалоба отправлена')),
+      );
+    }
+  }
+
+  Future<void> blockUser(String otherUserId) async {
+    await ref.read(safetyRepositoryProvider).blockUser(otherUserId);
+
+    if (!mounted) return;
+
+    // Сохраняем messenger до выхода с экрана, чтобы показать уведомление.
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Пользователь заблокирован')),
+    );
+  }
+
   Future<void> sendMessage() async {
     if (messageController.text.trim().isEmpty) return;
     await ref.read(chatRepositoryProvider).sendMessage(chatId: widget.chatId, text: messageController.text.trim());
@@ -60,7 +95,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(10, 8, 12, 10),
                 child: Row(
                   children: [
-                    IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back, color: Colors.white)),
+                    IconButton(
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/home');
+                        }
+                      },
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
                     Expanded(
                       child: chatAsync.when(
                         data: (chat) {
@@ -83,7 +127,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(otherUser['name'] ?? 'Пользователь', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                  Text(otherUser['isOnline'] == true ? 'Онлайн' : 'Не в сети', style: const TextStyle(color: LuxuryColors.online, fontSize: 11)),
+                                  Builder(builder: (_) {
+                                    final online = isUserOnline(otherUser);
+                                    return Text(
+                                      online ? 'Онлайн' : 'Не в сети',
+                                      style: TextStyle(color: online ? LuxuryColors.online : Colors.white54, fontSize: 11),
+                                    );
+                                  }),
                                 ],
                               ),
                             ],
@@ -93,7 +143,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         error: (_, __) => const Text('Чат'),
                       ),
                     ),
-                    const Icon(Icons.more_vert, color: Colors.white),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onSelected: (value) {
+                        final chat = chatAsync.value;
+                        final otherUser = chat != null
+                            ? Map<String, dynamic>.from(chat['otherUser'] ?? {})
+                            : <String, dynamic>{};
+                        final otherUserId = otherUser['uid'] as String?;
+                        if (otherUserId == null) return;
+
+                        if (value == 'report') {
+                          reportUser(otherUserId);
+                        }
+
+                        if (value == 'block') {
+                          blockUser(otherUserId);
+                        }
+                      },
+                      itemBuilder: (context) {
+                        return const [
+                          PopupMenuItem(
+                            value: 'report',
+                            child: Text('Пожаловаться'),
+                          ),
+                          PopupMenuItem(
+                            value: 'block',
+                            child: Text('Заблокировать'),
+                          ),
+                        ];
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -102,10 +182,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   data: (messages) {
                     if (messages.isEmpty) return const Center(child: Text('Напишите первое сообщение'));
                     return ListView.builder(
+                      reverse: true,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
-                        final message = messages[index];
+                        final message = messages[messages.length - 1 - index];
                         final isMe = message['senderId'] == currentUserId;
                         final readBy = List<String>.from(message['readBy'] ?? []);
                         final isReadByOther = readBy.length > 1;

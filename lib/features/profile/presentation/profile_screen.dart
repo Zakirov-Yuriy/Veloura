@@ -39,8 +39,8 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
-                        IconButton(onPressed: () => context.go('/profile-setup'), icon: const Icon(Icons.edit_outlined)),
+                        // IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
+                        IconButton(onPressed: () => context.push('/profile-setup'), icon: const Icon(Icons.edit_outlined)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -58,16 +58,16 @@ class ProfileScreen extends StatelessWidget {
                             child: photoUrl == null ? const Icon(Icons.person, size: 76, color: LuxuryColors.gold) : null,
                           ),
                         ),
-                        Positioned(
-                          right: 2,
-                          bottom: 8,
-                          child: Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(shape: BoxShape.circle, gradient: luxuryGradient, border: Border.all(color: LuxuryColors.black, width: 3)),
-                            child: const Icon(Icons.workspace_premium, color: Colors.white),
-                          ),
-                        ),
+                        // Positioned(
+                        //   right: 2,
+                        //   bottom: 8,
+                        //   child: Container(
+                        //     width: 46,
+                        //     height: 46,
+                        //     decoration: BoxDecoration(shape: BoxShape.circle, gradient: luxuryGradient, border: Border.all(color: LuxuryColors.black, width: 3)),
+                        //     child: const Icon(Icons.workspace_premium, color: Colors.white),
+                        //   ),
+                        // ),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -108,9 +108,9 @@ class ProfileScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           _ProfileMenu(icon: Icons.workspace_premium, title: 'Премиум аккаунт', onTap: () {}),
-                          _ProfileMenu(icon: Icons.image_outlined, title: 'Мои фото', onTap: () => context.go('/profile-setup')),
+                          _ProfileMenu(icon: Icons.image_outlined, title: 'Мои фото', onTap: () => context.push('/profile-setup')),
                           _ProfileMenu(icon: Icons.star_border, title: 'Избранные', onTap: () {}),
-                          _ProfileMenu(icon: Icons.settings_outlined, title: 'Настройки', onTap: () => context.go('/blocked-users')),
+                          _ProfileMenu(icon: Icons.block, title: 'Заблокированные', onTap: () => context.push('/blocked-users')),
                           _ProfileMenu(
                             icon: Icons.logout,
                             title: 'Выйти',

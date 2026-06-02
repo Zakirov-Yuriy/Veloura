@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/home_provider.dart';
+import '../../../core/utils/presence.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
 
 class ProfileDetailsScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _ProfileDetailsScreenState
     final photos =
         List<String>.from(widget.profile['photoUrls'] ?? []);
 
-    final isOnline = widget.profile['isOnline'] == true;
+    final isOnline = isUserOnline(widget.profile);
 
     Future<void> passUser() async {
       await ref

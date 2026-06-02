@@ -105,7 +105,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 }
 
-class _AuthTextField extends StatelessWidget {
+class _AuthTextField extends StatefulWidget {
   final TextEditingController controller;
   final String hintText;
   final bool obscureText;
@@ -114,12 +114,32 @@ class _AuthTextField extends StatelessWidget {
   const _AuthTextField({required this.controller, required this.hintText, this.obscureText = false, this.suffixIcon});
 
   @override
+  State<_AuthTextField> createState() => _AuthTextFieldState();
+}
+
+class _AuthTextFieldState extends State<_AuthTextField> {
+  late bool _obscure = widget.obscureText;
+
+  @override
   Widget build(BuildContext context) {
+    final decoration = widget.obscureText
+        ? luxuryInputDecoration(widget.hintText).copyWith(
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _obscure = !_obscure),
+              icon: Icon(
+                _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: LuxuryColors.gold,
+                size: 18,
+              ),
+            ),
+          )
+        : luxuryInputDecoration(widget.hintText, suffixIcon: widget.suffixIcon);
+
     return TextField(
-      controller: controller,
-      obscureText: obscureText,
+      controller: widget.controller,
+      obscureText: _obscure,
       style: const TextStyle(color: Colors.white),
-      decoration: luxuryInputDecoration(hintText, suffixIcon: suffixIcon),
+      decoration: decoration,
     );
   }
 }

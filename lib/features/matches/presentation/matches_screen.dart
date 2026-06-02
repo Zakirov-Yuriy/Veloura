@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../core/utils/presence.dart';
+import '../../safety/presentation/providers/safety_provider.dart';
 import 'providers/matches_provider.dart';
 
 class MatchesScreen extends ConsumerWidget {
@@ -20,18 +23,23 @@ class MatchesScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Матчи', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-                    Icon(Icons.workspace_premium, color: LuxuryColors.gold),
+                    const Text('Матчи', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                    SvgPicture.asset('assets/icons/king.svg', width: 24, height: 24, colorFilter: const ColorFilter.mode(LuxuryColors.gold, BlendMode.srcIn)),
                   ],
                 ),
                 const SizedBox(height: 22),
                 Expanded(
                   child: matchesAsync.when(
                     data: (matches) {
-                      if (matches.isEmpty) return const Center(child: Text('Матчей пока нет'));
+                      final blocked = ref.watch(blockedUserIdsProvider).value ?? <String>{};
+                      final visibleMatches = matches.where((m) {
+                        final ou = Map<String, dynamic>.from(m['otherUser'] ?? {});
+                        return !blocked.contains(ou['uid']);
+                      }).toList();
+                      if (visibleMatches.isEmpty) return const Center(child: Text('Матчей пока нет'));
                       return GridView.builder(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
@@ -39,14 +47,15 @@ class MatchesScreen extends ConsumerWidget {
                           crossAxisSpacing: 14,
                           childAspectRatio: 0.74,
                         ),
-                        itemCount: matches.length,
+                        itemCount: visibleMatches.length,
                         itemBuilder: (context, index) {
-                          final match = matches[index];
+                          final match = visibleMatches[index];
                           final otherUser = match['otherUser'] as Map<String, dynamic>;
                           final photos = List<String>.from(otherUser['photoUrls'] ?? []);
                           final photoUrl = photos.isNotEmpty ? photos.first : null;
+                          final isOnline = isUserOnline(otherUser);
                           return GestureDetector(
-                            onTap: () => context.go('/chat/${match['id']}'),
+                            onTap: () => context.push('/chat/${match['id']}'),
                             child: Column(
                               children: [
                                 Container(
@@ -67,7 +76,13 @@ class MatchesScreen extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                                 ),
-                                const Text('Онлайн', style: TextStyle(color: LuxuryColors.online, fontSize: 11)),
+                                Text(
+                                  isOnline ? 'Онлайн' : 'Не в сети',
+                                  style: TextStyle(
+                                    color: isOnline ? LuxuryColors.online : Colors.white54,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ],
                             ),
                           );

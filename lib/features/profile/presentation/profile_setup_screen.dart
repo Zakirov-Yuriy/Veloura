@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../domain/models/profile_model.dart';
+import '../../../core/theme/luxury_theme.dart';
 import 'providers/cloudinary_provider.dart';
 import 'providers/profile_provider.dart';
 
@@ -187,23 +188,38 @@ class _ProfileSetupScreenState
 
     return Scaffold(
       backgroundColor: darkBg,
-      appBar: AppBar(
-        title: const Text(
-          'Мой профиль',
-          style: TextStyle(
-            color: gold,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: const Color(0xFF0F0F0F),
-        elevation: 0,
-        foregroundColor: gold,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      body: LuxuryScreen(
+        child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 8, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/home');
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+                // const SizedBox(width: 12),
+                const Text(
+                  'Мой профиль',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             const Text(
               'Фотографии',
               style: TextStyle(
@@ -515,8 +531,9 @@ class _ProfileSetupScreenState
                     : const Text(
                         'Сохранить профиль',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
+                          color: Colors.white,
                         ),
                       ),
               ),
@@ -524,36 +541,13 @@ class _ProfileSetupScreenState
           ],
         ),
       ),
+      ),
     );
   }
 }
 
 InputDecoration _inputDecoration(String hint) {
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(
-      color: Color(0xFF8A8A8A),
-    ),
-    filled: true,
-    fillColor: const Color(0xFF2A2A2A),
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 18,
-      vertical: 16,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(
-        color: Color(0xFF3A3A3A),
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(
-        color: Color(0xFFD4AF37),
-        width: 1.5,
-      ),
-    ),
-  );
+  return luxuryInputDecoration(hint);
 }
 
 class _GradientRangeSliderTrackShape extends RangeSliderTrackShape {

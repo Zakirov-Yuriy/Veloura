@@ -33,7 +33,7 @@ class CustomBottomNavBar extends StatelessWidget {
           children: List.generate(icons.length, (index) {
             final isActive = index == currentIndex;
             final color = isActive ? LuxuryColors.gold : const Color(0xFFB7B7B7);
-            final icon = Icon(icons[index], color: color, size: 27);
+            final icon = Icon(icons[index], color: color, size: 30);
 
             return GestureDetector(
               onTap: () => onTap(index),

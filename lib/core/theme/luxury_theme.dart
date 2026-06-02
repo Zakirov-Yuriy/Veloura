@@ -33,7 +33,7 @@ class LuxuryScreen extends StatelessWidget {
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           center: Alignment.topCenter,
-          radius: 1.1,
+          radius: 1.8,
           colors: [Color(0xFF1B1B1B), Color(0xFF070707)],
         ),
       ),
@@ -115,7 +115,7 @@ class LuxuryGradientButton extends StatelessWidget {
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
-            : Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            : Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
       ),
     );
   }
@@ -125,7 +125,7 @@ InputDecoration luxuryInputDecoration(String hint, {IconData? suffixIcon}) {
   return InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(color: Color(0xFF777777), fontSize: 14),
-    suffixIcon: suffixIcon == null ? null : Icon(suffixIcon, color: LuxuryColors.gold, size: 18),
+    // suffixIcon: suffixIcon == null ? null : Icon(suffixIcon, color: LuxuryColors.gold, size: 18),
     filled: true,
     fillColor: const Color(0xFF141414),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

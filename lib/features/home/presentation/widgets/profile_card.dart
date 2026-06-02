@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/luxury_theme.dart';
+import '../../../../core/utils/presence.dart';
 
 class ProfileCard extends StatefulWidget {
   final Map<String, dynamic> profile;
@@ -33,7 +34,7 @@ class _ProfileCardState extends State<ProfileCard> {
     final currentPhoto =
         photos.isEmpty ? null : photos[currentPhotoIndex];
 
-    final isOnline = widget.profile['isOnline'] == true;
+    final isOnline = isUserOnline(widget.profile);
 
     return Container(
       decoration: BoxDecoration(
@@ -138,9 +139,11 @@ class _ProfileCardState extends State<ProfileCard> {
                 children: [
                   Row(
                     children: [
-                      Expanded(
+                      Flexible(
                         child: Text(
                           '${widget.profile['name'] ?? 'Пользователь'}, ${widget.profile['age'] ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 27,
                             fontWeight: FontWeight.w700,
@@ -148,6 +151,7 @@ class _ProfileCardState extends State<ProfileCard> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 10),
                       const Icon(
                         Icons.verified,
                         color: LuxuryColors.gold,

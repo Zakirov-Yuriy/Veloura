@@ -61,4 +61,17 @@ class SafetyRepository {
   Future<void> unblockUser(String blockId) async {
     await _firestore.collection('blocks').doc(blockId).delete();
   }
+
+  // Лёгкий стрим id пользователей, которых заблокировал текущий пользователь.
+  // Обновляется при блокировке/разблокировке, что позволяет реактивно
+  // прятать/возвращать чаты и матчи с этими пользователями.
+  Stream<Set<String>> blockedUserIds() {
+    return _firestore
+        .collection('blocks')
+        .where('fromUserId', isEqualTo: currentUserId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => doc['blockedUserId'] as String)
+            .toSet());
+  }
 }
