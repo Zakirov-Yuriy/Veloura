@@ -46,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Stack(
                       clipBehavior: Clip.none,
-                      children: [
+                      children: [ 
                         Container(
                           width: 156,
                           height: 156,

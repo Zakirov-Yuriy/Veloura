@@ -182,21 +182,22 @@ class _ProfileSetupScreenState
 
   @override
   Widget build(BuildContext context) {
-    const pink = Color(0xFFFF4F7B);
+    const gold = Color(0xFFD4AF37);
+    const darkBg = Color(0xFF1A1A1A);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: darkBg,
       appBar: AppBar(
         title: const Text(
           'Мой профиль',
           style: TextStyle(
-            color: Colors.black,
+            color: gold,
             fontWeight: FontWeight.w700,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.8,
-        foregroundColor: Colors.black,
+        backgroundColor: const Color(0xFF0F0F0F),
+        elevation: 0,
+        foregroundColor: gold,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -206,7 +207,7 @@ class _ProfileSetupScreenState
             const Text(
               'Фотографии',
               style: TextStyle(
-                color: Colors.black,
+                color: Color(0xFFD4AF37),
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -234,10 +235,10 @@ class _ProfileSetupScreenState
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(18),
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFFEAEAEA),
+                        color: const Color(0xFF3A3A3A),
                       ),
                       image: hasLocalImage
                           ? DecorationImage(
@@ -258,7 +259,7 @@ class _ProfileSetupScreenState
                             !hasUploadedImage
                         ? const Icon(
                             Icons.add_a_photo,
-                            color: Color(0xFFB8B8B8),
+                            color: Color(0xFFD4AF37),
                             size: 30,
                           )
                         : null,
@@ -269,12 +270,36 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 28),
 
+            const Text(
+              'ИМЯ',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             _ProfileField(
               controller: nameController,
               hint: 'Имя',
             ),
 
             const SizedBox(height: 14),
+
+            const Text(
+              'ВОЗРАСТ',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
 
             _ProfileField(
               controller: ageController,
@@ -284,9 +309,25 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
+            const Text(
+              'Я',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             DropdownButtonFormField<String>(
               value: gender,
               decoration: _inputDecoration('Пол'),
+              dropdownColor: const Color(0xFF2A2A2A),
+              style: const TextStyle(
+                color: Colors.white,
+              ),
               items: const [
                 DropdownMenuItem(
                   value: 'male',
@@ -308,9 +349,25 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
+            const Text(
+              'ИЩУ',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             DropdownButtonFormField<String>(
               value: lookingFor,
               decoration: _inputDecoration('Кого ищу'),
+              dropdownColor: const Color(0xFF2A2A2A),
+              style: const TextStyle(
+                color: Colors.white,
+              ),
               items: const [
                 DropdownMenuItem(
                   value: 'male',
@@ -332,21 +389,61 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
-            Row(
+            const Text(
+              'ВОЗРАСТ ПАРТНЁРА',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Column(
               children: [
-                Expanded(
-                  child: _ProfileField(
-                    controller: minAgeController,
-                    hint: 'Возраст от',
-                    keyboardType: TextInputType.number,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      minAgeController.text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      maxAgeController.text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ProfileField(
-                    controller: maxAgeController,
-                    hint: 'Возраст до',
-                    keyboardType: TextInputType.number,
+                const SizedBox(height: 12),
+                SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 5,
+                    rangeTrackShape: const _GradientRangeSliderTrackShape(),
+                    inactiveTrackColor: const Color(0xFF3A3A3A),
+                  ),
+                  child: RangeSlider(
+                    values: RangeValues(
+                      double.parse(minAgeController.text),
+                      double.parse(maxAgeController.text),
+                    ),
+                    min: 18,
+                    max: 100,
+                    onChanged: (RangeValues values) {
+                      setState(() {
+                        minAgeController.text = values.start.toInt().toString();
+                        maxAgeController.text = values.end.toInt().toString();
+                      });
+                    },
                   ),
                 ),
               ],
@@ -354,12 +451,36 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
+            const Text(
+              'USERNAME',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             _ProfileField(
               controller: cityController,
               hint: 'Город',
             ),
 
             const SizedBox(height: 14),
+
+            const Text(
+              'О СЕБЕ',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
 
             _ProfileField(
               controller: bioController,
@@ -375,11 +496,11 @@ class _ProfileSetupScreenState
               child: ElevatedButton(
                 onPressed: isLoading ? null : saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: pink,
-                  foregroundColor: Colors.white,
+                  backgroundColor: gold,
+                  foregroundColor: const Color(0xFF0F0F0F),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
                 child: isLoading
@@ -388,7 +509,7 @@ class _ProfileSetupScreenState
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F0F0F)),
                         ),
                       )
                     : const Text(
@@ -411,27 +532,114 @@ InputDecoration _inputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(
-      color: Color(0xFFB8B8B8),
+      color: Color(0xFF8A8A8A),
     ),
     filled: true,
-    fillColor: Colors.white,
+    fillColor: const Color(0xFF2A2A2A),
     contentPadding: const EdgeInsets.symmetric(
       horizontal: 18,
       vertical: 16,
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       borderSide: const BorderSide(
-        color: Color(0xFFE8E8E8),
+        color: Color(0xFF3A3A3A),
       ),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       borderSide: const BorderSide(
-        color: Color(0xFFFF4F7B),
+        color: Color(0xFFD4AF37),
+        width: 1.5,
       ),
     ),
   );
+}
+
+class _GradientRangeSliderTrackShape extends RangeSliderTrackShape {
+  const _GradientRangeSliderTrackShape();
+
+  @override
+  Rect getPreferredRect({
+    required RenderBox parentBox,
+    Offset offset = Offset.zero,
+    required SliderThemeData sliderTheme,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    final trackHeight = sliderTheme.trackHeight ?? 5;
+    const thumbRadius = 12.0;
+    final trackLeft = offset.dx + thumbRadius;
+    final trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final trackWidth = parentBox.size.width - 2 * thumbRadius;
+    return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
+  }
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required Animation<double> enableAnimation,
+    required TextDirection textDirection,
+    required Offset startThumbCenter,
+    required Offset endThumbCenter,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    final rect = getPreferredRect(
+      parentBox: parentBox,
+      offset: offset,
+      sliderTheme: sliderTheme,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+
+    // Рисуем неактивную часть слева
+    final inactivePaint = Paint()
+      ..color = sliderTheme.inactiveTrackColor!;
+
+    context.canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(rect.left, rect.top, startThumbCenter.dx - rect.left, rect.height),
+        const Radius.circular(2.5),
+      ),
+      inactivePaint,
+    );
+
+    // Рисуем активную часть с градиентом
+    final activeRect = Rect.fromLTWH(
+      startThumbCenter.dx,
+      rect.top,
+      endThumbCenter.dx - startThumbCenter.dx,
+      rect.height,
+    );
+
+    final gradient = LinearGradient(
+      colors: const [
+        Color(0xFFFF4F7B),
+        Color(0xFFD4AF37),
+      ],
+    ).createShader(activeRect);
+
+    final gradientPaint = Paint()
+      ..shader = gradient;
+
+    context.canvas.drawRRect(
+      RRect.fromRectAndRadius(activeRect, const Radius.circular(2.5)),
+      gradientPaint,
+    );
+
+    // Рисуем неактивную часть справа
+    context.canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(endThumbCenter.dx, rect.top, rect.right - endThumbCenter.dx, rect.height),
+        const Radius.circular(2.5),
+      ),
+      inactivePaint,
+    );
+  }
 }
 
 class _ProfileField extends StatelessWidget {
@@ -454,7 +662,7 @@ class _ProfileField extends StatelessWidget {
       keyboardType: keyboardType,
       maxLines: maxLines,
       style: const TextStyle(
-        color: Colors.black,
+        color: Colors.white,
       ),
       decoration: _inputDecoration(hint),
     );

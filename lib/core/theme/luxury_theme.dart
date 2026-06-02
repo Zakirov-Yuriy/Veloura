@@ -33,7 +33,7 @@ class LuxuryScreen extends StatelessWidget {
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           center: Alignment.topCenter,
-          radius: 1.1,
+          radius: 0,
           colors: [Color(0xFF1B1B1B), Color(0xFF070707)],
         ),
       ),
@@ -150,24 +150,24 @@ class VelouraWordmark extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.workspace_premium, color: LuxuryColors.gold, size: size * 0.9),
+        // Icon(Icons.workspace_premium, color: LuxuryColors.gold, size: size * 0.9),
         Text(
           'VELOURA',
           style: TextStyle(
             color: LuxuryColors.gold,
             fontSize: size,
-            letterSpacing: 2.2,
+            letterSpacing: 3.2,
             fontFamily: 'serif',
           ),
         ),
-        Text(
-          'PREMIUM DATING',
-          style: TextStyle(
-            color: LuxuryColors.gold.withOpacity(0.9),
-            fontSize: size * 0.28,
-            letterSpacing: 2,
-          ),
-        ),
+        // Text(
+        //   'PREMIUM DATING',
+        //   style: TextStyle(
+        //     color: LuxuryColors.gold.withOpacity(0.9),
+        //     fontSize: size * 0.28,
+        //     letterSpacing: 2,
+        //   ),
+        // ),
       ],
     );
   }
