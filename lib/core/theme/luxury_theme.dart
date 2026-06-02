@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LuxuryColors {
   static const black = Color(0xFF0F0F0F);
@@ -150,7 +151,7 @@ class VelouraWordmark extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon(Icons.workspace_premium, color: LuxuryColors.gold, size: size * 0.9),
+        // SvgPicture.asset('assets/icons/king.svg', width: size * 1.9, height: size * 1.9),
         Text(
           'VELOURA',
           style: TextStyle(

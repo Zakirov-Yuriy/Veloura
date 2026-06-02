@@ -15,14 +15,6 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const icons = [
-      Icons.local_fire_department_outlined,
-      Icons.favorite_border,
-      Icons.chat_bubble_outline,
-      Icons.person_outline,
-     
-    ];
-
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: LuxuryPanel(
@@ -30,10 +22,10 @@ class CustomBottomNavBar extends StatelessWidget {
         radius: 28,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(icons.length, (index) {
+          children: List.generate(4, (index) {
             final isActive = index == currentIndex;
             final color = isActive ? LuxuryColors.gold : const Color(0xFFB7B7B7);
-            final icon = Icon(icons[index], color: color, size: 30);
+            final icon = _buildIcon(index, color);
 
             return GestureDetector(
               onTap: () => onTap(index),
@@ -83,5 +75,35 @@ class CustomBottomNavBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildIcon(int index, Color color) {
+    switch (index) {
+      case 0:
+        return Image.asset(
+          'assets/icons/fire.png',
+          color: color,
+          width: 30,
+          height: 30,
+        );
+      case 1:
+        return Icon(Icons.favorite_border, color: color, size: 30);
+      case 2:
+        return Image.asset(
+          'assets/icons/chat.png',
+          color: color,
+          width: 30,
+          height: 30,
+        );
+      case 3:
+        return Image.asset(
+          'assets/icons/person.png',
+          color: color,
+          width: 30,
+          height: 30,
+        );
+      default:
+        return const SizedBox();
+    }
   }
 }

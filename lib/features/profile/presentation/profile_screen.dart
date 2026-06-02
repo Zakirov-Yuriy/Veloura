@@ -91,17 +91,7 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 22),
-                    LuxuryPanel(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: const [
-                          _Stat(value: '89', label: 'Лайков'),
-                          _Stat(value: '12', label: 'Матчей'),
-                          _Stat(value: '23', label: 'Друзей'),
-                        ],
-                      ),
-                    ),
+                    _StatsPanel(uid: currentUser.uid),
                     const SizedBox(height: 18),
                     LuxuryPanel(
                       padding: EdgeInsets.zero,
@@ -148,6 +138,70 @@ class _Stat extends StatelessWidget {
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
       ],
+    );
+  }
+}
+
+class _StatsPanel extends StatelessWidget {
+  final String uid;
+
+  const _StatsPanel({required this.uid});
+
+  @override
+  Widget build(BuildContext context) {
+    final firestore = FirebaseFirestore.instance;
+
+    return LuxuryPanel(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          // Лайки, которые получил пользователь.
+          // Если нужно считать отправленные лайки, замените
+          // 'toUserId' на 'fromUserId'.
+          _LiveStat(
+            label: 'Лайков',
+            query: firestore
+                .collection('likes')
+                .where('toUserId', isEqualTo: uid),
+          ),
+          // Матчи: документы коллекции matches, где массив users содержит мой uid.
+          _LiveStat(
+            label: 'Матчей',
+            query: firestore
+                .collection('matches')
+                .where('users', arrayContains: uid),
+          ),
+          // Друзей: отдельной коллекции в проекте пока нет.
+          // const _Stat(value: '0', label: 'Друзей'),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveStat extends StatelessWidget {
+  final String label;
+  final Query<Map<String, dynamic>> query;
+
+  const _LiveStat({required this.label, required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          debugPrint('[$label] ОШИБКА: ${snapshot.error}');
+          return _Stat(value: 'E', label: label);
+        }
+        if (!snapshot.hasData) {
+          return _Stat(value: '...', label: label);
+        }
+        final count = snapshot.data!.docs.length;
+        debugPrint('[$label] найдено документов: $count');
+        return _Stat(value: '$count', label: label);
+      },
     );
   }
 }
