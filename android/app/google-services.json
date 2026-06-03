@@ -12,7 +12,20 @@
           "package_name": "com.example.veloura"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "536073911138-7spq55qnii5hqg1rccvicui1tig4ereq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.veloura",
+            "certificate_hash": "a305be3a5b9e3eba1558699ef3568cb4eeb4af0e"
+          }
+        },
+        {
+          "client_id": "536073911138-2hbulpjk9klvqavqe4m1d2nr12kbgfk0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBCilCC3hZkaQ08rtaelHtJigAoFmL0To0"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536073911138-2hbulpjk9klvqavqe4m1d2nr12kbgfk0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "536073911138-brajhvfsp7q0tp29pp3tmehl8na8ib7u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.veloura"
+              }
+            }
+          ]
         }
       }
     }
