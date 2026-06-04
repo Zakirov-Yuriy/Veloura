@@ -46,8 +46,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await FcmService().init();
       ref.invalidate(profilesProvider);
       if (!mounted) return;
-      // Новый пользователь идёт заполнять анкету, существующий — на главный.
-      context.go(isNewUser ? '/profile-setup' : '/home');
+      // Новый пользователь идёт через онбординг, существующий — на главный.
+      context.go(isNewUser ? '/onboarding' : '/home');
     } on GoogleSignInException catch (e) {
       // Пользователь закрыл окно выбора аккаунта — это не ошибка.
       if (e.code == GoogleSignInExceptionCode.canceled) return;

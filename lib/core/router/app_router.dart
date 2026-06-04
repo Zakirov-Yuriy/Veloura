@@ -9,6 +9,7 @@ import '../../features/chat/presentation/chats_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/profile_details_screen.dart';
 import '../../features/main/presentation/main_shell_screen.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/safety/presentation/blocked_users_screen.dart';
 
@@ -23,6 +24,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/sign-up',
       builder: (context, state) => const SignUpScreen(),
+    ),
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, state) => const OnboardingScreen(),
     ),
     GoRoute(
       path: '/home',

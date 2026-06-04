@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../home/presentation/providers/home_provider.dart';
@@ -18,6 +19,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool isLoading = false;
+  bool isGoogleLoading = false;
 
   Future<void> signUp() async {
     try {
@@ -26,11 +28,30 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       await ref.read(authRepositoryProvider).setOnlineStatus(true);
       await FcmService().init();
       ref.invalidate(profilesProvider);
-      if (mounted) context.go('/profile-setup');
+      if (mounted) context.go('/onboarding');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> signUpWithGoogle() async {
+    try {
+      setState(() => isGoogleLoading = true);
+      final isNewUser = await ref.read(authRepositoryProvider).signInWithGoogle();
+      await ref.read(authRepositoryProvider).setOnlineStatus(true);
+      await FcmService().init();
+      ref.invalidate(profilesProvider);
+      if (!mounted) return;
+      context.go(isNewUser ? '/onboarding' : '/home');
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return;
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => isGoogleLoading = false);
     }
   }
 
@@ -67,19 +88,33 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     const SizedBox(height: 12),
                     _AuthTextField(controller: passwordController, hintText: 'Пароль', obscureText: true, suffixIcon: Icons.visibility_outlined),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Container(width: 17, height: 17, decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white24))),
-                        const SizedBox(width: 8),
-                        const Expanded(child: Text('Я принимаю условия использования и политику конфиденциальности', style: TextStyle(color: LuxuryColors.muted, fontSize: 11))),
-                      ],
-                    ),
+                    // Row(
+                    //   children: [
+                    //     Container(width: 17, height: 17, decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white24))),
+                    //     const SizedBox(width: 8),
+                    //     const Expanded(child: Text('Я принимаю условия использования и политику конфиденциальности', style: TextStyle(color: LuxuryColors.muted, fontSize: 11))),
+                    //   ],
+                    // ),
                     const SizedBox(height: 16),
                     LuxuryGradientButton(title: 'Зарегистрироваться', onTap: signUp, loading: isLoading),
                     const SizedBox(height: 18),
                     const Row(children: [Expanded(child: Divider(color: Colors.white12)), Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('или', style: TextStyle(color: LuxuryColors.muted))), Expanded(child: Divider(color: Colors.white12))]),
                     const SizedBox(height: 14),
-                    Row(children: const [Expanded(child: _SocialButton(icon: Icons.apple)), SizedBox(width: 12), Expanded(child: _SocialButton(text: 'G'))]),
+                    Row(
+                      children: [
+                        // const Expanded(
+                        //   child: _SocialButton(icon: Icons.apple),
+                        // ),
+                        // const SizedBox(width: 12),
+                        Expanded(
+                          child: _SocialButton(
+                            imagePath: 'assets/icons/google.png',
+                            loading: isGoogleLoading,
+                            onTap: isGoogleLoading ? null : signUpWithGoogle,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () => context.go('/sign-in'),
@@ -138,15 +173,33 @@ class _AuthTextFieldState extends State<_AuthTextField> {
 class _SocialButton extends StatelessWidget {
   final IconData? icon;
   final String? text;
+  final String? imagePath;
+  final VoidCallback? onTap;
+  final bool loading;
 
-  const _SocialButton({this.icon, this.text});
+  const _SocialButton({this.icon, this.text, this.imagePath, this.onTap, this.loading = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: LuxuryColors.gold.withOpacity(0.32))),
-      child: Center(child: icon != null ? Icon(icon, color: Colors.white) : Text(text!, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 46,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: LuxuryColors.gold.withOpacity(0.32))),
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: LuxuryColors.gold),
+                )
+              : (icon != null
+                  ? Icon(icon, color: Colors.white)
+                  : imagePath != null
+                      ? Image.asset(imagePath!, width: 20, height: 20)
+                      : Text(text!, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+        ),
+      ),
     );
   }
 }
