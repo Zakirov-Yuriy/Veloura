@@ -103,7 +103,7 @@ class _VelouraSplashScreenState extends State<VelouraSplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

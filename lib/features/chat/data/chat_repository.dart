@@ -5,12 +5,26 @@ class ChatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  String get currentUserId => _auth.currentUser!.uid;
+  String get currentUserId {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User is not authenticated');
+    }
+    return user.uid;
+  }
+
+  String? get currentUserIdOrNull => _auth.currentUser?.uid;
 
   Stream<List<Map<String, dynamic>>> getMyChats() async* {
+    final userId = currentUserIdOrNull;
+    if (userId == null) {
+      yield [];
+      return;
+    }
+
     await for (final snapshot in _firestore
         .collection('chats')
-        .where('members', arrayContains: currentUserId)
+        .where('members', arrayContains: userId)
         .snapshots()) {
       final chats = <Map<String, dynamic>>[];
 
@@ -21,7 +35,7 @@ class ChatRepository {
             List<String>.from(data['members']);
 
         final otherUserId = members.firstWhere(
-          (id) => id != currentUserId,
+          (id) => id != userId,
         );
 
         final userDoc = await _firestore
@@ -66,6 +80,9 @@ class ChatRepository {
   }) async {
     if (text.trim().isEmpty) return;
 
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
     final chatDoc =
         await _firestore.collection('chats').doc(chatId).get();
 
@@ -75,21 +92,21 @@ class ChatRepository {
         List<String>.from(chatData['members'] ?? []);
 
     final receiverId = members.firstWhere(
-      (id) => id != currentUserId,
+      (id) => id != userId,
     );
 
     await _firestore.collection('messages').add({
       'chatId': chatId,
-      'senderId': currentUserId,
+      'senderId': userId,
       'receiverId': receiverId,
       'text': text.trim(),
       'createdAt': Timestamp.now(),
-      'readBy': [currentUserId],
+      'readBy': [userId],
     });
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': text.trim(),
-      'lastMessageSenderId': currentUserId,
+      'lastMessageSenderId': userId,
       'unreadCount': FieldValue.increment(1),
       'unreadBy': FieldValue.arrayUnion([receiverId]),
       'updatedAt': Timestamp.now(),
@@ -97,6 +114,9 @@ class ChatRepository {
   }
 
   Future<void> markMessagesAsRead(String chatId) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
     final messagesSnapshot = await _firestore
         .collection('messages')
         .where('chatId', isEqualTo: chatId)
@@ -108,10 +128,10 @@ class ChatRepository {
       final readBy =
           List<String>.from(data['readBy'] ?? []);
 
-      if (!readBy.contains(currentUserId)) {
+      if (!readBy.contains(userId)) {
         await doc.reference.update({
           'readBy': FieldValue.arrayUnion([
-            currentUserId,
+            userId,
           ]),
         });
       }
@@ -119,9 +139,12 @@ class ChatRepository {
   }
 
   Future<void> markChatAsRead(String chatId) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
     await _firestore.collection('chats').doc(chatId).update({
       'unreadCount': 0,
-      'unreadBy': FieldValue.arrayRemove([currentUserId]),
+      'unreadBy': FieldValue.arrayRemove([userId]),
     });
   }
 
@@ -129,14 +152,23 @@ class ChatRepository {
     required String chatId,
     required bool isTyping,
   }) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
     await _firestore.collection('chats').doc(chatId).update({
       'typingUsers': isTyping
-          ? FieldValue.arrayUnion([currentUserId])
-          : FieldValue.arrayRemove([currentUserId]),
+          ? FieldValue.arrayUnion([userId])
+          : FieldValue.arrayRemove([userId]),
     });
   }
 
   Stream<Map<String, dynamic>> getChat(String chatId) async* {
+    final userId = currentUserIdOrNull;
+    if (userId == null) {
+      yield {};
+      return;
+    }
+
     await for (final doc in _firestore.collection('chats').doc(chatId).snapshots()) {
       final chat = doc.data() ?? {};
 
@@ -148,7 +180,7 @@ class ChatRepository {
       }
 
       final otherUserId = members.firstWhere(
-        (id) => id != currentUserId,
+        (id) => id != userId,
         orElse: () => '',
       );
 

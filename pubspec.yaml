@@ -107,9 +107,9 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 flutter_native_splash:
-  color: "#15131F"
+  color: "#000000"
   image: assets/splash_logo.png          # для Android 11 и ниже + iOS
   android_12:
     image: assets/splash_logo.png        # ОБЯЗАТЕЛЬНО отдельно для Android 12+
-    color: "#15131F"
-    icon_background_color: "#15131F"      # убирает белый кружок (сливается с фоном)
+    color: "#000000"
+    icon_background_color: "#000000"      # убирает белый кружок (сливается с фоном)
