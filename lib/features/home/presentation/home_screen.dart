@@ -161,7 +161,7 @@ class _HomeRoundButton extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: filled || featured ? luxuryGradient : null,
           color: filled || featured ? null : Colors.black.withOpacity(0.35),
-          border: Border.all(color: LuxuryColors.gold.withOpacity(0.65), width: 2.0),
+          border: Border.all(color: LuxuryColors.gold.withOpacity(0.65), width: 3.0),
           boxShadow: [BoxShadow(color: LuxuryColors.gold.withOpacity(0.18), blurRadius: 0, spreadRadius: 1)],
         ),
         child: Icon(icon, color: filled ? Colors.white : LuxuryColors.gold, size: featured ? 30 : 35),
