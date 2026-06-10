@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../core/utils/auth_validation.dart';
+import '../../../core/widgets/glow_field.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import 'providers/auth_provider.dart';
 
@@ -20,7 +23,22 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool isLoading = false;
   bool isGoogleLoading = false;
 
+  String? emailError;
+  String? passwordError;
+
+  /// Клиентская проверка перед запросом к Firebase.
+  bool validateForm() {
+    final eErr = validateEmail(emailController.text);
+    final pErr = validatePassword(passwordController.text);
+    setState(() {
+      emailError = eErr;
+      passwordError = pErr;
+    });
+    return eErr == null && pErr == null;
+  }
+
   Future<void> signIn() async {
+    if (!validateForm()) return;
     try {
       setState(() => isLoading = true);
       await ref.read(authRepositoryProvider).signIn(
@@ -31,8 +49,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await FcmService().init();
       ref.invalidate(profilesProvider);
       if (mounted) context.go('/home');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final message = mapAuthError(e);
+      setState(() {
+        // Ошибку показываем под тем полем, к которому она относится.
+        if (emailErrorCodes.contains(e.code)) {
+          emailError = message;
+        } else if (passwordErrorCodes.contains(e.code)) {
+          passwordError = message;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        }
+      });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -51,9 +82,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } on GoogleSignInException catch (e) {
       // Пользователь закрыл окно выбора аккаунта — это не ошибка.
       if (e.code == GoogleSignInExceptionCode.canceled) return;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
     } finally {
       if (mounted) setState(() => isGoogleLoading = false);
     }
@@ -85,14 +116,33 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     const SizedBox(height: 6),
                     const Text('Мы рады видеть вас снова', style: TextStyle(color: LuxuryColors.muted, fontSize: 13)),
                     const SizedBox(height: 26),
-                    _AuthTextField(controller: emailController, hintText: 'Email или телефон'),
+                    _AuthTextField(
+                      controller: emailController,
+                      hintText: 'Email или телефон',
+                      errorText: emailError,
+                      onChanged: (_) {
+                        if (emailError != null) setState(() => emailError = null);
+                      },
+                    ),
                     const SizedBox(height: 12),
-                    _AuthTextField(controller: passwordController, hintText: 'Пароль', obscureText: true, suffixIcon: Icons.visibility_outlined),
-                    const Align(
+                    _AuthTextField(
+                      controller: passwordController,
+                      hintText: 'Пароль',
+                      obscureText: true,
+                      suffixIcon: Icons.visibility_outlined,
+                      errorText: passwordError,
+                      onChanged: (_) {
+                        if (passwordError != null) setState(() => passwordError = null);
+                      },
+                    ),
+                    Align(
                       alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 10, bottom: 16),
-                        child: Text('Забыли пароль?', style: TextStyle(color: LuxuryColors.gold, fontSize: 12)),
+                      child: GestureDetector(
+                        onTap: () => context.push('/forgot-password'),
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 10, bottom: 16),
+                          child: Text('Забыли пароль?', style: TextStyle(color: LuxuryColors.gold, fontSize: 12)),
+                        ),
                       ),
                     ),
                     LuxuryGradientButton(title: 'Войти', onTap: signIn, loading: isLoading),
@@ -137,8 +187,17 @@ class _AuthTextField extends StatefulWidget {
   final String hintText;
   final bool obscureText;
   final IconData? suffixIcon;
+  final String? errorText;
+  final ValueChanged<String>? onChanged;
 
-  const _AuthTextField({required this.controller, required this.hintText, this.obscureText = false, this.suffixIcon});
+  const _AuthTextField({
+    required this.controller,
+    required this.hintText,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.errorText,
+    this.onChanged,
+  });
 
   @override
   State<_AuthTextField> createState() => _AuthTextFieldState();
@@ -149,7 +208,7 @@ class _AuthTextFieldState extends State<_AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final decoration = widget.obscureText
+    final base = widget.obscureText
         ? luxuryInputDecoration(widget.hintText).copyWith(
             suffixIcon: IconButton(
               onPressed: () => setState(() => _obscure = !_obscure),
@@ -162,11 +221,38 @@ class _AuthTextFieldState extends State<_AuthTextField> {
           )
         : luxuryInputDecoration(widget.hintText, suffixIcon: widget.suffixIcon);
 
-    return TextField(
-      controller: widget.controller,
-      obscureText: _obscure,
-      style: const TextStyle(color: Colors.white),
-      decoration: decoration,
+    final decoration = base.copyWith(
+      enabledBorder: transparentInputBorder(),
+      focusedBorder: transparentInputBorder(),
+    );
+
+    final hasError = widget.errorText != null;
+
+    // Текст ошибки рисуем ВНЕ GlowField, иначе градиентная рамка
+    // обернёт и поле, и подпись с ошибкой вместе.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GlowField(
+          hasError: hasError,
+          builder: (focusNode) => TextField(
+            controller: widget.controller,
+            focusNode: focusNode,
+            obscureText: _obscure,
+            onChanged: widget.onChanged,
+            style: const TextStyle(color: Colors.white),
+            decoration: decoration,
+          ),
+        ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              widget.errorText!,
+              style: const TextStyle(color: Color(0xFFFF5252), fontSize: 11.5),
+            ),
+          ),
+      ],
     );
   }
 }

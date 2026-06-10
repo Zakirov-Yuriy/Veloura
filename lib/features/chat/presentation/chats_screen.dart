@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/presence.dart';
+import '../../../core/widgets/glow_field.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
 import 'providers/chat_provider.dart';
 
@@ -32,9 +33,16 @@ class ChatsScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: luxuryInputDecoration('Поиск', suffixIcon: Icons.tune).copyWith(prefixIcon: const Icon(Icons.search, color: LuxuryColors.muted, size: 19)),
+                GlowField(
+                  builder: (focusNode) => TextField(
+                    focusNode: focusNode,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: luxuryInputDecoration('Поиск', suffixIcon: Icons.tune).copyWith(
+                      prefixIcon: const Icon(Icons.search, color: LuxuryColors.muted, size: 19),
+                      enabledBorder: transparentInputBorder(),
+                      focusedBorder: transparentInputBorder(),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Expanded(

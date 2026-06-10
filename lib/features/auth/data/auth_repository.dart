@@ -16,6 +16,7 @@ class AuthRepository {
   Future<void> signUp({
     required String email,
     required String password,
+    String name = '',
   }) async {
     final credential =
         await _auth.createUserWithEmailAndPassword(
@@ -29,6 +30,7 @@ class AuthRepository {
         .set({
       'uid': credential.user!.uid,
       'email': email,
+      'name': name.trim(),
       'createdAt': Timestamp.now(),
     });
   }
@@ -41,6 +43,13 @@ class AuthRepository {
       email: email,
       password: password,
     );
+  }
+
+  /// Отправляет на указанную почту письмо со ссылкой для сброса пароля.
+  /// Сам сброс происходит на стороне Firebase: пользователь переходит
+  /// по ссылке из письма и задаёт новый пароль.
+  Future<void> sendPasswordReset(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
   }
 
   /// Вход через Google.
@@ -75,14 +84,40 @@ class AuthRepository {
     final isNewUser = !snapshot.exists;
 
     if (isNewUser) {
+      // Google отдаёт имя и аватарку «бесплатно», сохраняем их сразу,
+      // чтобы предзаполнить профиль на этапе онбординга.
+      final photoUrl = _upscaleGooglePhoto(user.photoURL);
       await docRef.set({
         'uid': user.uid,
         'email': user.email ?? '',
+        'name': _firstNameOnly(user.displayName),
+        'photoUrls': photoUrl != null ? [photoUrl] : <String>[],
         'createdAt': Timestamp.now(),
       });
     }
 
     return isNewUser;
+  }
+
+  /// Google отдаёт в displayName полное имя ("Yuriy Zak").
+  /// Для профиля нам нужно только имя, поэтому берём первое слово.
+  String _firstNameOnly(String? fullName) {
+    final trimmed = (fullName ?? '').trim();
+    if (trimmed.isEmpty) return '';
+    return trimmed.split(RegExp(r'\s+')).first;
+  }
+
+  /// Google по умолчанию отдаёт аватарку 96x96 (суффикс "=s96-c" в URL).
+  /// Заменяем размер на 400px, чтобы фото не было мыльным в карточках.
+  /// Если суффикса нет, добавляем его сами.
+  String? _upscaleGooglePhoto(String? url) {
+    if (url == null || url.isEmpty) return null;
+
+    final sizeSuffix = RegExp(r'=s\d+(-c)?$');
+    if (sizeSuffix.hasMatch(url)) {
+      return url.replaceFirst(sizeSuffix, '=s400-c');
+    }
+    return '$url=s400-c';
   }
 
   Future<void> signOut() async {

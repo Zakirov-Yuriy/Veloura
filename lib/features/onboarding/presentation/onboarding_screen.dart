@@ -212,8 +212,8 @@ class _SlideView extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: LuxuryColors.gold.withOpacity(0.4),
-                        blurRadius: 22,
+                        color: LuxuryColors.gold.withOpacity(0.9),
+                        blurRadius: 5,
                       ),
                     ],
                   ),

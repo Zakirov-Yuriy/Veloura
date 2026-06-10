@@ -29,6 +29,12 @@ class GlowField extends StatefulWidget {
   /// Цвет статичного бордера, когда поле не в фокусе.
   final Color idleColor;
 
+  /// Если true, бордер становится красным (статичным) независимо от фокуса.
+  final bool hasError;
+
+  /// Цвет бордера в состоянии ошибки.
+  final Color errorColor;
+
   const GlowField({
     super.key,
     required this.builder,
@@ -43,6 +49,8 @@ class GlowField extends StatefulWidget {
       Color(0xFFD4AF37),
     ],
     this.idleColor = const Color(0x38D4AF37), // gold с прозрачностью ~0.22
+    this.hasError = false,
+    this.errorColor = const Color(0xFFFF5252),
   });
 
   @override
@@ -92,9 +100,10 @@ class _GlowFieldState extends State<GlowField>
             radius: widget.radius,
             strokeWidth: widget.strokeWidth,
             progress: _anim.value,
-            active: _focused,
+            // При ошибке гасим анимацию и рисуем статичный красный бордер.
+            active: _focused && !widget.hasError,
             colors: widget.colors,
-            idleColor: widget.idleColor,
+            idleColor: widget.hasError ? widget.errorColor : widget.idleColor,
           ),
           child: child,
         );
