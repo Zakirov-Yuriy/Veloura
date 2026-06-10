@@ -96,7 +96,7 @@ class LuxuryGradientButton extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: LuxuryColors.gold.withOpacity(0.26),
-            blurRadius: 18,
+            blurRadius: 3,
           ),
         ],
       ),

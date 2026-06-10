@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../domain/models/profile_model.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../core/widgets/glow_field.dart';
 import 'providers/cloudinary_provider.dart';
 import 'providers/profile_provider.dart';
 
@@ -337,30 +338,36 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 8),
 
-            DropdownButtonFormField<String>(
-              value: gender,
-              decoration: _inputDecoration('Пол'),
-              dropdownColor: const Color(0xFF2A2A2A),
-              style: const TextStyle(
-                color: Colors.white,
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'male',
-                  child: Text('Мужчина'),
+            GlowField(
+              builder: (focusNode) => DropdownButtonFormField<String>(
+                focusNode: focusNode,
+                value: gender,
+                decoration: _inputDecoration('Пол').copyWith(
+                  enabledBorder: transparentInputBorder(),
+                  focusedBorder: transparentInputBorder(),
                 ),
-                DropdownMenuItem(
-                  value: 'female',
-                  child: Text('Женщина'),
+                dropdownColor: const Color(0xFF2A2A2A),
+                style: const TextStyle(
+                  color: Colors.white,
                 ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
+                items: const [
+                  DropdownMenuItem(
+                    value: 'male',
+                    child: Text('Мужчина'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'female',
+                    child: Text('Женщина'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
 
-                setState(() {
-                  gender = value;
-                });
-              },
+                  setState(() {
+                    gender = value;
+                  });
+                },
+              ),
             ),
 
             const SizedBox(height: 14),
@@ -377,30 +384,36 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 8),
 
-            DropdownButtonFormField<String>(
-              value: lookingFor,
-              decoration: _inputDecoration('Кого ищу'),
-              dropdownColor: const Color(0xFF2A2A2A),
-              style: const TextStyle(
-                color: Colors.white,
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'male',
-                  child: Text('Мужчину'),
+            GlowField(
+              builder: (focusNode) => DropdownButtonFormField<String>(
+                focusNode: focusNode,
+                value: lookingFor,
+                decoration: _inputDecoration('Кого ищу').copyWith(
+                  enabledBorder: transparentInputBorder(),
+                  focusedBorder: transparentInputBorder(),
                 ),
-                DropdownMenuItem(
-                  value: 'female',
-                  child: Text('Женщину'),
+                dropdownColor: const Color(0xFF2A2A2A),
+                style: const TextStyle(
+                  color: Colors.white,
                 ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
+                items: const [
+                  DropdownMenuItem(
+                    value: 'male',
+                    child: Text('Мужчину'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'female',
+                    child: Text('Женщину'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
 
-                setState(() {
-                  lookingFor = value;
-                });
-              },
+                  setState(() {
+                    lookingFor = value;
+                  });
+                },
+              ),
             ),
 
             const SizedBox(height: 14),
@@ -468,7 +481,7 @@ class _ProfileSetupScreenState
             const SizedBox(height: 14),
 
             const Text(
-              'USERNAME',
+              'ВАШ ГОРОД',
               style: TextStyle(
                 color: Color(0xFFD4AF37),
                 fontSize: 12,
@@ -651,14 +664,20 @@ class _ProfileField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      style: const TextStyle(
-        color: Colors.white,
+    return GlowField(
+      builder: (focusNode) => TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
+        decoration: _inputDecoration(hint).copyWith(
+          enabledBorder: transparentInputBorder(),
+          focusedBorder: transparentInputBorder(),
+        ),
       ),
-      decoration: _inputDecoration(hint),
     );
   }
 }

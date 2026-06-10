@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../core/widgets/glow_field.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import 'providers/auth_provider.dart';
 
@@ -148,7 +149,7 @@ class _AuthTextFieldState extends State<_AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final decoration = widget.obscureText
+    final base = widget.obscureText
         ? luxuryInputDecoration(widget.hintText).copyWith(
             suffixIcon: IconButton(
               onPressed: () => setState(() => _obscure = !_obscure),
@@ -161,11 +162,19 @@ class _AuthTextFieldState extends State<_AuthTextField> {
           )
         : luxuryInputDecoration(widget.hintText, suffixIcon: widget.suffixIcon);
 
-    return TextField(
-      controller: widget.controller,
-      obscureText: _obscure,
-      style: const TextStyle(color: Colors.white),
-      decoration: decoration,
+    final decoration = base.copyWith(
+      enabledBorder: transparentInputBorder(),
+      focusedBorder: transparentInputBorder(),
+    );
+
+    return GlowField(
+      builder: (focusNode) => TextField(
+        controller: widget.controller,
+        focusNode: focusNode,
+        obscureText: _obscure,
+        style: const TextStyle(color: Colors.white),
+        decoration: decoration,
+      ),
     );
   }
 }
