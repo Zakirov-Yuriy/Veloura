@@ -56,11 +56,11 @@ class CustomBottomNavBar extends StatelessWidget {
                                 right: -8,
                                 top: -7,
                                 child: Container(
-                                  padding: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: const BoxDecoration(color: LuxuryColors.gold, shape: BoxShape.circle),
                                   child: Text(
                                     unreadChatsCount.toString(),
-                                    style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ),

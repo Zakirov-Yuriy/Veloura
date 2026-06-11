@@ -42,4 +42,34 @@ class CloudinaryService {
       decodedData['error']['message'],
     );
   }
+
+  /// Загрузка медиа для чата (фото или видео).
+  ///
+  /// Использует endpoint `auto/upload` — Cloudinary сам определит тип
+  /// файла. Возвращает secure_url загруженного файла.
+  Future<String> uploadChatMedia(File file) async {
+    final uri = Uri.parse(
+      'https://api.cloudinary.com/v1_1/${CloudinaryConstants.cloudName}/auto/upload',
+    );
+
+    final request = http.MultipartRequest('POST', uri);
+
+    request.fields['upload_preset'] =
+        CloudinaryConstants.uploadPreset;
+    request.fields['folder'] = 'chat_media';
+
+    request.files.add(
+      await http.MultipartFile.fromPath('file', file.path),
+    );
+
+    final response = await request.send();
+    final responseData = await response.stream.bytesToString();
+    final decodedData = jsonDecode(responseData);
+
+    if (response.statusCode == 200) {
+      return decodedData['secure_url'];
+    }
+
+    throw Exception(decodedData['error']['message']);
+  }
 }

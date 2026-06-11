@@ -61,6 +61,7 @@ functions/.env.local
 functions/lib/
 functions/.runtimeconfig.json
 functions/dist/
+functions/veloura-21064-firebase-adminsdk-fbsvc-33bebf321e.json
 
 # Temporary files
 *.tmp

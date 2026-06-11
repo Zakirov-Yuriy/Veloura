@@ -59,9 +59,16 @@ class ChatRepository {
     return _firestore
         .collection('messages')
         .where('chatId', isEqualTo: chatId)
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
         .map((snapshot) {
-      final messages = snapshot.docs.map((doc) => doc.data()).toList();
+      final messages = snapshot.docs
+          .map((doc) => {
+                ...doc.data(),
+                // true, пока запись не подтверждена сервером —
+                // используется для статуса «отправлено/доставлено».
+                '_pending': doc.metadata.hasPendingWrites,
+              })
+          .toList();
 
       messages.sort((a, b) {
         final aTime = a['createdAt'] as Timestamp;
@@ -106,6 +113,51 @@ class ChatRepository {
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': text.trim(),
+      'lastMessageSenderId': userId,
+      'unreadCount': FieldValue.increment(1),
+      'unreadBy': FieldValue.arrayUnion([receiverId]),
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
+  /// Отправка медиа-сообщения (фото или видео).
+  ///
+  /// [mediaType] — 'image' или 'video'.
+  Future<void> sendMediaMessage({
+    required String chatId,
+    required String mediaUrl,
+    required String mediaType,
+  }) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
+    final chatDoc =
+        await _firestore.collection('chats').doc(chatId).get();
+
+    final chatData = chatDoc.data() ?? {};
+
+    final members =
+        List<String>.from(chatData['members'] ?? []);
+
+    final receiverId = members.firstWhere(
+      (id) => id != userId,
+    );
+
+    final preview = mediaType == 'video' ? '🎥 Видео' : '📷 Фото';
+
+    await _firestore.collection('messages').add({
+      'chatId': chatId,
+      'senderId': userId,
+      'receiverId': receiverId,
+      'text': '',
+      'mediaUrl': mediaUrl,
+      'mediaType': mediaType,
+      'createdAt': Timestamp.now(),
+      'readBy': [userId],
+    });
+
+    await _firestore.collection('chats').doc(chatId).update({
+      'lastMessage': preview,
       'lastMessageSenderId': userId,
       'unreadCount': FieldValue.increment(1),
       'unreadBy': FieldValue.arrayUnion([receiverId]),
