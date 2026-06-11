@@ -173,6 +173,7 @@ function pickGreeting(bot) {
 }
 
 async function touchBotPresence(botId) {
+  markBotActive(botId);
   await db.collection("users").doc(botId).update({
     isOnline: true,
     lastSeen: admin.firestore.Timestamp.now(),
@@ -380,20 +381,41 @@ db.collection("messages")
       });
     }, (e) => console.error(`Слушатель messages упал: ${e.message}`));
 
-// Поддерживаем «онлайн» ботов: раз в 90 секунд освежаем lastSeen,
-// иначе через 2 минуты приложение посчитает их оффлайн.
-setInterval(async () => {
-  try {
-    const botsSnapshot = await db
-        .collection("users")
-        .where("isBot", "==", true)
-        .get();
+// Поддерживаем «онлайн» только у АКТИВНЫХ ботов — тех, кто недавно
+// участвовал в лайке или переписке. Обновлять lastSeen у всех ботов
+// нельзя: при 1000 ботов это ~960 тысяч записей в сутки при лимите
+// Spark 20 тысяч. Активный бот считается таковым 10 минут после
+// последнего события, потом естественно «уходит в оффлайн».
+const ACTIVE_TTL_MS = 10 * 60 * 1000;
+const activeBots = new Map(); // botId -> timestamp последней активности
 
-    const now = admin.firestore.Timestamp.now();
+function markBotActive(botId) {
+  activeBots.set(botId, Date.now());
+}
+
+setInterval(async () => {
+  const now = Date.now();
+  const aliveIds = [];
+
+  for (const [botId, ts] of activeBots) {
+    if (now - ts > ACTIVE_TTL_MS) {
+      activeBots.delete(botId);
+    } else {
+      aliveIds.push(botId);
+    }
+  }
+
+  if (aliveIds.length === 0) return;
+
+  try {
+    const ts = admin.firestore.Timestamp.now();
     const batch = db.batch();
-    botsSnapshot.docs.forEach((doc) => {
-      batch.update(doc.ref, {isOnline: true, lastSeen: now});
-    });
+    for (const botId of aliveIds) {
+      batch.update(db.collection("users").doc(botId), {
+        isOnline: true,
+        lastSeen: ts,
+      });
+    }
     await batch.commit();
   } catch (e) {
     console.warn(`Обновление присутствия ботов: ${e.message}`);
