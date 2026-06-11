@@ -8,6 +8,6 @@ final homeRepositoryProvider =
 });
 
 final profilesProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
   return ref.read(homeRepositoryProvider).getProfiles();
 });

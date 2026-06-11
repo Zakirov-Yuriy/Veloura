@@ -8,83 +8,71 @@ class HomeRepository {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Stream<List<Map<String, dynamic>>> getProfiles() {
+  /// Одноразовая загрузка анкет для ленты.
+  ///
+  /// Лайки, пропуски и блокировки запрашиваются только СВОИ (фильтр по
+  /// fromUserId). Анкеты фильтруются по полу на стороне сервера и
+  /// ограничиваются порцией в [_feedBatchSize] документов, чтобы при
+  /// тысячах профилей (включая ботов) не выкачивать всю базу: это и
+  /// квота чтений Firestore, и память устройства.
+  ///
+  /// Обновление ленты — через ref.invalidate(profilesProvider).
+  static const _feedBatchSize = 100;
+
+  Future<List<Map<String, dynamic>>> getProfiles() async {
     final currentUserId = _auth.currentUser!.uid;
 
-    return _firestore
-        .collection('users')
-        .where('profileCompleted', isEqualTo: true)
-        .snapshots()
-        .asyncMap((usersSnapshot) async {
-      final likesSnapshot =
-          await _firestore.collection('likes').get();
+    // Сначала свой профиль: его настройки нужны для фильтра анкет.
+    final currentUserDoc =
+        await _firestore.collection('users').doc(currentUserId).get();
+    final currentUserData = currentUserDoc.data() ?? {};
 
-      final passesSnapshot =
-          await _firestore.collection('passes').get();
+    final lookingFor = currentUserData['lookingFor'];
+    final minAge = currentUserData['minAge'] ?? 18;
+    final maxAge = currentUserData['maxAge'] ?? 100;
 
-      final blocksSnapshot =
-          await _firestore.collection('blocks').get();
-
-      final likedUserIds = likesSnapshot.docs
-          .where(
-            (doc) =>
-                doc['fromUserId'] == currentUserId,
-          )
-          .map((doc) => doc['toUserId'] as String)
-          .toList();
-
-      final passedUserIds = passesSnapshot.docs
-          .where(
-            (doc) =>
-                doc['fromUserId'] == currentUserId,
-          )
-          .map((doc) => doc['toUserId'] as String)
-          .toList();
-
-      final blockedUserIds = blocksSnapshot.docs
-          .where(
-            (doc) => doc['fromUserId'] == currentUserId,
-          )
-          .map((doc) => doc['blockedUserId'] as String)
-          .toList();
-
-      final excludedIds = [
-        ...likedUserIds,
-        ...passedUserIds,
-        ...blockedUserIds,
-      ];
-
-      final currentUserDoc = await _firestore
+    final results = await Future.wait([
+      _firestore
           .collection('users')
-          .doc(currentUserId)
-          .get();
+          .where('profileCompleted', isEqualTo: true)
+          .where('gender', isEqualTo: lookingFor)
+          .limit(_feedBatchSize)
+          .get(),
+      _firestore
+          .collection('likes')
+          .where('fromUserId', isEqualTo: currentUserId)
+          .get(),
+      _firestore
+          .collection('passes')
+          .where('fromUserId', isEqualTo: currentUserId)
+          .get(),
+      _firestore
+          .collection('blocks')
+          .where('fromUserId', isEqualTo: currentUserId)
+          .get(),
+    ]);
 
-      final currentUserData =
-          currentUserDoc.data() ?? {};
+    final usersSnapshot = results[0];
+    final likesSnapshot = results[1];
+    final passesSnapshot = results[2];
+    final blocksSnapshot = results[3];
 
-      final lookingFor =
-          currentUserData['lookingFor'];
+    final excludedIds = <String>{
+      ...likesSnapshot.docs.map((doc) => doc['toUserId'] as String),
+      ...passesSnapshot.docs.map((doc) => doc['toUserId'] as String),
+      ...blocksSnapshot.docs.map((doc) => doc['blockedUserId'] as String),
+    };
 
-      final minAge =
-          currentUserData['minAge'] ?? 18;
-
-      final maxAge =
-          currentUserData['maxAge'] ?? 100;
-
-      return usersSnapshot.docs
-          .map((doc) => doc.data())
-          .where(
-            (user) =>
-                user['uid'] != currentUserId &&
-                !excludedIds.contains(
-                  user['uid'],
-                ) &&
-                user['gender'] == lookingFor &&
-                (user['age'] ?? 0) >= minAge &&
-                (user['age'] ?? 0) <= maxAge,
-          )
-          .toList();
-    });
+    return usersSnapshot.docs
+        .map((doc) => doc.data())
+        .where(
+          (user) =>
+              user['uid'] != currentUserId &&
+              !excludedIds.contains(user['uid']) &&
+              (user['age'] ?? 0) >= minAge &&
+              (user['age'] ?? 0) <= maxAge,
+        )
+        .toList();
   }
 
   Future<void> passUser(String toUserId) async {

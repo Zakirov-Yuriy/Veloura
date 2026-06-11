@@ -1,0 +1,407 @@
+/**
+ * Воркер ИИ-ботов Veloura для запуска на СОБСТВЕННОМ сервере.
+ * Замена Cloud Functions: не требует тарифа Blaze.
+ *
+ * Что делает:
+ *  1. Слушает коллекцию likes: живой пользователь лайкнул бота →
+ *     взаимный лайк, мэтч, чат, первое сообщение от бота.
+ *  2. Слушает коллекцию messages: сообщение боту → индикатор
+ *     «Печатает...», ответ через OpenRouter с ротацией ключей.
+ *  3. Шлёт FCM-пуши о новых сообщениях живым пользователям
+ *     (замена функции sendMessageNotification).
+ *  4. Поддерживает «онлайн»-статус ботов.
+ *
+ * Запуск (из папки functions, Node 20.6+):
+ *   $env:GOOGLE_APPLICATION_CREDENTIALS="C:\путь\к\service-account.json"
+ *   node --env-file=.env bot_worker.js
+ *
+ * В .env должны быть OPENROUTER_API_KEYS и AI_MODEL (см. .env.example).
+ * Воркер должен работать постоянно (pm2 / NSSM / служба Windows).
+ */
+
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
+
+// ===========================================================================
+// Конфигурация ИИ
+// ===========================================================================
+
+const AI_MODEL = process.env.AI_MODEL || "openai/gpt-oss-120b:free";
+
+const API_KEYS = (process.env.OPENROUTER_API_KEYS || "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
+if (API_KEYS.length === 0) {
+  console.error("ОШИБКА: OPENROUTER_API_KEYS не задан. " +
+      "Запускайте так: node --env-file=.env bot_worker.js");
+  process.exit(1);
+}
+
+let keyCursor = 0;
+
+/** Запрос к OpenRouter с ротацией ключей по кругу. */
+async function callOpenRouter(messages) {
+  let lastError = new Error("Все ключи OpenRouter исчерпаны");
+
+  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+    const index = (keyCursor + attempt) % API_KEYS.length;
+    const key = API_KEYS[index];
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const res = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: AI_MODEL,
+              messages: messages,
+              max_tokens: 350,
+              temperature: 0.9,
+            }),
+            signal: controller.signal,
+          },
+      );
+
+      if (!res.ok) {
+        lastError = new Error(`OpenRouter HTTP ${res.status} (ключ #${index})`);
+        console.warn(lastError.message);
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content?.trim();
+
+      if (!text) {
+        lastError = new Error(`Пустой ответ модели (ключ #${index})`);
+        console.warn(lastError.message);
+        continue;
+      }
+
+      keyCursor = index;
+      return text;
+    } catch (e) {
+      lastError = e;
+      console.warn(`Ключ #${index} не ответил: ${e.message}`);
+      continue;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError;
+}
+
+// ===========================================================================
+// Вспомогательные функции
+// ===========================================================================
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const randInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+/** Системный промпт: личность бота из его карточки профиля. */
+function buildPersonaPrompt(bot, user) {
+  const genderWord = bot.gender === "female" ? "девушка" : "парень";
+  return [
+    `Ты — ${bot.name}, ${genderWord} ${bot.age} лет из города ` +
+      `${bot.city || "Москва"}.`,
+    bot.bio ? `О себе ты пишешь так: «${bot.bio}».` : "",
+    `Ты общаешься в дейтинг-приложении Veloura с собеседником ` +
+      `по имени ${user.name || "незнакомец"}` +
+      (user.age ? ` (${user.age} лет` : "") +
+      (user.city ? `, город ${user.city})` : user.age ? ")" : "") + ".",
+    "",
+    "Правила общения:",
+    "- Ты живой человек. Никогда не признавайся, что ты бот, ИИ или " +
+      "нейросеть, даже если прямо спросят — отшутись.",
+    "- Пиши как в мессенджере: коротко, 1–2 предложения, иногда " +
+      "одно слово или вопрос.",
+    "- Ты НЕ напористый собеседник. В начале знакомства отвечай " +
+      "сдержанно и немного на дистанции, раскрывайся постепенно, " +
+      "по мере того как разговор теплеет.",
+    "- Не задавай вопрос в каждом сообщении. Иногда просто отреагируй: " +
+      "согласись, улыбнись, ответь на то, что написали. Вопросы — " +
+      "примерно в одном сообщении из двух-трёх.",
+    "- Не делай комплименты и не флиртуй первым. Дай собеседнику " +
+      "вести: подстраивайся под его темп и тон.",
+    "- Используй эмодзи умеренно и только к месту 😊",
+    "- Пиши на языке собеседника (по умолчанию русский), допускай " +
+      "лёгкий разговорный стиль, без канцелярита.",
+    "- Не выдумывай номера телефонов, ссылки и соцсети. На предложение " +
+      "встретиться отвечай тепло, но уклончиво: мол, сначала хочется " +
+      "пообщаться здесь.",
+    "- Никогда не проси денег и не давай советов про деньги и здоровье.",
+    "- Отвечай ТОЛЬКО текстом сообщения, без кавычек и пояснений.",
+  ].filter(Boolean).join("\n");
+}
+
+/// ----------------------------------------------------------------------
+/// Первое сообщение после мэтча: простой короткий привет БЕЗ вопросов
+/// и без ИИ. Напористое «расскажи о себе» в первом сообщении отпугивает,
+/// особенно от девушки. Разговор бот развивает уже после ответа.
+/// ----------------------------------------------------------------------
+const greetingsFemale = [
+  "Привет)",
+  "Привет 😊",
+  "Приветик)",
+  "Хей)",
+  "Привет-привет)",
+];
+
+const greetingsMale = [
+  "Привет)",
+  "Привет!",
+  "Хей)",
+  "Привет 👋",
+  "Здравствуй)",
+];
+
+function pickGreeting(bot) {
+  const pool = bot.gender === "female" ? greetingsFemale : greetingsMale;
+  return pool[randInt(0, pool.length - 1)];
+}
+
+async function touchBotPresence(botId) {
+  await db.collection("users").doc(botId).update({
+    isOnline: true,
+    lastSeen: admin.firestore.Timestamp.now(),
+  });
+}
+
+async function sendBotMessage(chatId, botId, userId, text) {
+  const now = admin.firestore.Timestamp.now();
+
+  await db.collection("messages").add({
+    chatId: chatId,
+    senderId: botId,
+    receiverId: userId,
+    text: text,
+    createdAt: now,
+    readBy: [botId],
+  });
+
+  await db.collection("chats").doc(chatId).update({
+    lastMessage: text,
+    lastMessageSenderId: botId,
+    unreadCount: admin.firestore.FieldValue.increment(1),
+    unreadBy: admin.firestore.FieldValue.arrayUnion(userId),
+    updatedAt: now,
+  });
+}
+
+// ===========================================================================
+// Обработчики событий
+// ===========================================================================
+
+/** Живой пользователь лайкнул бота: мэтч, чат, первое сообщение. */
+async function handleLike(like) {
+  const fromUserId = like.fromUserId;
+  const toUserId = like.toUserId;
+
+  const [toDoc, fromDoc] = await Promise.all([
+    db.collection("users").doc(toUserId).get(),
+    db.collection("users").doc(fromUserId).get(),
+  ]);
+
+  const bot = toDoc.data();
+  const user = fromDoc.data();
+
+  if (!bot || bot.isBot !== true) return;
+  if (!user || user.isBot === true) return;
+
+  console.log(`ЛАЙК: ${user.name} (${fromUserId}) → бот ${bot.name}`);
+
+  const reverseLikeId = `${toUserId}_${fromUserId}`;
+  await db.collection("likes").doc(reverseLikeId).set({
+    fromUserId: toUserId,
+    toUserId: fromUserId,
+    createdAt: admin.firestore.Timestamp.now(),
+  });
+
+  const users = [fromUserId, toUserId].sort();
+  const matchId = users.join("_");
+  const now = admin.firestore.Timestamp.now();
+
+  await db.collection("matches").doc(matchId).set({
+    id: matchId,
+    users: users,
+    createdAt: now,
+  }, {merge: true});
+
+  await db.collection("chats").doc(matchId).set({
+    id: matchId,
+    matchId: matchId,
+    members: users,
+    lastMessage: "",
+    updatedAt: now,
+  }, {merge: true});
+
+  await touchBotPresence(toUserId);
+
+  try {
+    const greeting = pickGreeting(bot);
+
+    await sleep(randInt(4000, 12000));
+    await sendBotMessage(matchId, toUserId, fromUserId, greeting);
+    console.log(`БОТ ${bot.name} поздоровался: ${greeting}`);
+  } catch (e) {
+    console.error(`Бот ${toUserId} не смог поздороваться: ${e.message}`);
+  }
+}
+
+/** Сообщение боту: «печатает» и отвечает через ИИ. */
+async function handleBotReply(message) {
+  const [receiverDoc, senderDoc] = await Promise.all([
+    db.collection("users").doc(message.receiverId).get(),
+    db.collection("users").doc(message.senderId).get(),
+  ]);
+
+  const bot = receiverDoc.data();
+  const user = senderDoc.data();
+
+  if (!bot || bot.isBot !== true) return;
+  if (!user || user.isBot === true) return;
+
+  const chatId = message.chatId;
+  const botId = message.receiverId;
+  const userId = message.senderId;
+
+  console.log(`СООБЩЕНИЕ боту ${bot.name}: ${message.text}`);
+
+  const historySnapshot = await db
+      .collection("messages")
+      .where("chatId", "==", chatId)
+      .get();
+
+  const history = historySnapshot.docs
+      .map((d) => d.data())
+      .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
+      .slice(-20)
+      .map((m) => ({
+        role: m.senderId === botId ? "assistant" : "user",
+        content: m.text,
+      }));
+
+  try {
+    await touchBotPresence(botId);
+    await sleep(randInt(2000, 6000));
+
+    await db.collection("chats").doc(chatId).update({
+      typingUsers: admin.firestore.FieldValue.arrayUnion(botId),
+    });
+
+    const reply = await callOpenRouter([
+      {role: "system", content: buildPersonaPrompt(bot, user)},
+      ...history,
+    ]);
+
+    const typingMs = Math.min(Math.max(reply.length * 55, 2000), 9000);
+    await sleep(typingMs);
+
+    await sendBotMessage(chatId, botId, userId, reply);
+    await touchBotPresence(botId);
+    console.log(`БОТ ${bot.name} ответил: ${reply}`);
+  } catch (e) {
+    console.error(`Бот ${botId} не смог ответить: ${e.message}`);
+  } finally {
+    await db.collection("chats").doc(chatId).update({
+      typingUsers: admin.firestore.FieldValue.arrayRemove(botId),
+    }).catch(() => null);
+  }
+}
+
+/** FCM-пуш живому получателю (замена sendMessageNotification). */
+async function handlePushNotification(message) {
+  const [receiverDoc, senderDoc] = await Promise.all([
+    db.collection("users").doc(message.receiverId).get(),
+    db.collection("users").doc(message.senderId).get(),
+  ]);
+
+  const receiver = receiverDoc.data();
+  const sender = senderDoc.data();
+  if (!receiver || !sender) return;
+  if (receiver.isBot === true) return;
+
+  const token = receiver.fcmToken;
+  if (!token) return;
+
+  try {
+    await admin.messaging().send({
+      notification: {
+        title: sender.name || "Новое сообщение",
+        body: message.text,
+      },
+      token: token,
+    });
+  } catch (e) {
+    console.warn(`Пуш не отправлен (${message.receiverId}): ${e.message}`);
+  }
+}
+
+// ===========================================================================
+// Подписки на коллекции
+// ===========================================================================
+
+// Обрабатываем только события, созданные ПОСЛЕ запуска воркера,
+// иначе при каждом старте он бы переобрабатывал всю историю.
+const startedAt = admin.firestore.Timestamp.now();
+
+db.collection("likes")
+    .where("createdAt", ">", startedAt)
+    .onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type !== "added") return;
+        handleLike(change.doc.data())
+            .catch((e) => console.error(`handleLike: ${e.message}`));
+      });
+    }, (e) => console.error(`Слушатель likes упал: ${e.message}`));
+
+db.collection("messages")
+    .where("createdAt", ">", startedAt)
+    .onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type !== "added") return;
+        const message = change.doc.data();
+        handlePushNotification(message)
+            .catch((e) => console.error(`push: ${e.message}`));
+        handleBotReply(message)
+            .catch((e) => console.error(`handleBotReply: ${e.message}`));
+      });
+    }, (e) => console.error(`Слушатель messages упал: ${e.message}`));
+
+// Поддерживаем «онлайн» ботов: раз в 90 секунд освежаем lastSeen,
+// иначе через 2 минуты приложение посчитает их оффлайн.
+setInterval(async () => {
+  try {
+    const botsSnapshot = await db
+        .collection("users")
+        .where("isBot", "==", true)
+        .get();
+
+    const now = admin.firestore.Timestamp.now();
+    const batch = db.batch();
+    botsSnapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, {isOnline: true, lastSeen: now});
+    });
+    await batch.commit();
+  } catch (e) {
+    console.warn(`Обновление присутствия ботов: ${e.message}`);
+  }
+}, 90000);
+
+console.log("=".repeat(60));
+console.log("Воркер ботов Veloura запущен");
+console.log(`Модель: ${AI_MODEL}, ключей OpenRouter: ${API_KEYS.length}`);
+console.log("Слушаю likes и messages... (Ctrl+C для остановки)");
+console.log("=".repeat(60));
