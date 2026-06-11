@@ -249,7 +249,7 @@ node upscale_bot_photos.js
 
 запуск вокера  
 
-(Get-Content .env) -replace 'OPENROUTER_API_KEY=', 'OPENROUTER_API_KEYS=' | Set-Content .env
+cd "C:\Users\zakco\VS Code\veloura\functions"
 node --env-file=.env bot_worker.js
 
 ответ должен быть 

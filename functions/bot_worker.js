@@ -21,6 +21,14 @@
 
 const admin = require("firebase-admin");
 
+const http = require("http");
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("OK");
+}).listen(process.env.PORT || 10000, () => {
+  console.log(`Health-сервер на порту ${process.env.PORT || 10000}`);
+});
+
 admin.initializeApp();
 const db = admin.firestore();
 
