@@ -30,7 +30,7 @@ class VelouraApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Veloura',
       theme: theme,
-      home: VelouraSplashScreen(
+      home: VeloSplashScreen(
         nextScreen: MaterialApp.router(
           debugShowCheckedModeBanner: false,
           theme: theme,
