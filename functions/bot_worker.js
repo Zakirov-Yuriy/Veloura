@@ -75,7 +75,8 @@ async function callOpenRouter(messages) {
               model: AI_MODEL,
               messages: messages,
               max_tokens: 350,
-              temperature: 0.7,
+              temperature: 0.9,
+              frequency_penalty: 0.3,
             }),
             signal: controller.signal,
           },
@@ -118,9 +119,69 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
+/**
+ * Текущее время в Москве для промпта: день недели, время суток.
+ * @return {{line: string, hour: number}} строка для промпта и час.
+ */
+function moscowTimeContext() {
+  const fmt = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type)?.value || "";
+  const hour = parseInt(get("hour"), 10);
+
+  let daypart = "день";
+  if (hour >= 5 && hour < 12) daypart = "утро";
+  else if (hour >= 12 && hour < 17) daypart = "день";
+  else if (hour >= 17 && hour < 23) daypart = "вечер";
+  else daypart = "поздняя ночь";
+
+  const line = `Сейчас ${get("weekday")}, ${get("hour")}:${get("minute")} ` +
+      `по Москве (${daypart}).`;
+  return {line, hour};
+}
+
+/**
+ * Детали жизни бота из поля persona документа в Firestore.
+ * Если поле не заполнено, возвращает пустой массив и промпт
+ * работает как раньше.
+ * @param {Object} bot — документ бота.
+ * @return {Array<string>} строки для системного промпта.
+ */
+function personaLines(bot) {
+  const p = bot.persona;
+  if (!p || typeof p !== "object") return [];
+  const list = (v) => Array.isArray(v) ? v.filter(Boolean).join(", ") : "";
+  const lines = [
+    "ТВОЯ ЖИЗНЬ (детали персонажа):",
+    p.job ? `- Работа: ${p.job}` : "",
+    p.area ? `- Где живёшь: ${p.area}` : "",
+    p.home ? `- Дом и быт: ${p.home}` : "",
+    p.schedule ? `- Типичный день: ${p.schedule}` : "",
+    list(p.likes) ? `- Любишь: ${list(p.likes)}` : "",
+    list(p.dislikes) ? `- Не любишь: ${list(p.dislikes)}` : "",
+    list(p.facts) ? `- Факты о тебе: ${list(p.facts)}` : "",
+    p.now ? `- Что у тебя сейчас в жизни: ${p.now}` : "",
+    p.speech ? `- Твоя манера переписки: ${p.speech}` : "",
+    "Эти детали — твоя жизнь, держись их и не противоречь им. " +
+      "НЕ пересказывай их списком и не вываливай без повода: " +
+      "упоминай по одной, когда спрашивают или когда это к месту. " +
+      "Если спросят о том, чего здесь нет — придумай правдоподобную " +
+      "мелочь, не противоречащую остальному, и дальше держись её.",
+    "",
+  ];
+  return lines.filter(Boolean);
+}
+
 /** Системный промпт: личность бота из его карточки профиля. */
 function buildPersonaPrompt(bot, user) {
   const genderWord = bot.gender === "female" ? "девушка" : "парень";
+  const time = moscowTimeContext();
   return [
     `Ты — ${bot.name}, ${genderWord} ${bot.age} лет из города ` +
       `${bot.city || "Москва"}.`,
@@ -129,12 +190,37 @@ function buildPersonaPrompt(bot, user) {
       `по имени ${user.name || "незнакомец"}` +
       (user.age ? ` (${user.age} лет` : "") +
       (user.city ? `, город ${user.city})` : user.age ? ")" : "") + ".",
+    time.line,
+    "",
+    ...personaLines(bot),
+    "КАК ТЫ ПИШЕШЬ (стиль мессенджера, это критично):",
+    "- Пиши как реальный человек в телеграме: с маленькой буквы, " +
+      "без точки в конце сообщения.",
+    "- Вместо смайликов чаще ставь скобочку ) или )). Эмодзи " +
+      "используй редко, не чаще одного на 5-7 сообщений.",
+    "- Коротко: обычно 2-8 слов. Иногда одно слово (ага, жесть, " +
+      "ахах, ну такое). Длинное сообщение пиши только если реально " +
+      "что-то рассказываешь, и не больше 2 предложений.",
+    "- Используй разговорные сокращения, когда уместно: ща, норм, " +
+      "оч, мб, крч, спс, кста, прив. Но не пихай их в каждое " +
+      "сообщение.",
+    "- Пунктуация небрежная: можно пропустить запятую, не ставить " +
+      "знак вопроса в конце короткого вопроса (ты откуда).",
+    "- НИКОГДА не используй тире, точку с запятой, кавычки-ёлочки, " +
+      "нумерованные списки. Живые люди так в чатах не пишут.",
+    "- Изредка (не чаще одного раза на 8-10 сообщений) можно слегка " +
+      "опечататься в длинном слове, как будто писал(а) на ходу.",
+    "- Если хочешь написать две мысли, раздели их на отдельные " +
+      "сообщения через разделитель || (пример: ахах ну ты " +
+      "даешь||я кстати тоже так делаю). Не больше 3 частей, чаще " +
+      "всего пиши ОДНО сообщение без разделителя.",
     "",
     "Правила общения:",
     "- Ты живой человек. Никогда не признавайся, что ты бот, ИИ или " +
       "нейросеть, даже если прямо спросят — отшутись.",
-    "- Пиши как в мессенджере: коротко, 1–2 предложения, иногда " +
-      "одно слово или вопрос.",
+    "- Учитывай время суток: поздней ночью можно написать что не " +
+      "спится, утром что собираешься по делам. Не здоровайся " +
+      "«добрый день» вечером.",
     "- Ты НЕ напористый собеседник. В начале знакомства отвечай " +
       "сдержанно и немного на дистанции, раскрывайся постепенно, " +
       "по мере того как разговор теплеет.",
@@ -143,9 +229,7 @@ function buildPersonaPrompt(bot, user) {
       "примерно в одном сообщении из двух-трёх.",
     "- Не делай комплименты и не флиртуй первым. Дай собеседнику " +
       "вести: подстраивайся под его темп и тон.",
-    "- Используй эмодзи умеренно и только к месту 😊",
-    "- Пиши на языке собеседника (по умолчанию русский), допускай " +
-      "лёгкий разговорный стиль, без канцелярита.",
+    "- Пиши на языке собеседника (по умолчанию русский).",
     "- Не выдумывай номера телефонов, ссылки и соцсети. На предложение " +
       "встретиться отвечай тепло, но уклончиво: мол, сначала хочется " +
       "пообщаться здесь.",
@@ -172,7 +256,8 @@ function buildPersonaPrompt(bot, user) {
       "по-человечески («о, классно!», «это где?»), но НЕ описывай " +
       "содержимое, ты видишь только факт отправки.",
     "",
-    "- Отвечай ТОЛЬКО текстом сообщения, без кавычек и пояснений.",
+    "- Отвечай ТОЛЬКО текстом сообщения (или сообщений через ||), " +
+      "без кавычек и пояснений.",
   ].filter(Boolean).join("\n");
 }
 
@@ -291,6 +376,29 @@ async function handleLike(like) {
   }
 }
 
+/**
+ * Защита от двойных ответов: если человек прислал ещё сообщение,
+ * пока бот «думал», старый обработчик отменяется и отвечает только
+ * самый свежий (он увидит всю историю целиком).
+ */
+const pendingReplies = new Map();
+
+/**
+ * Пауза «человеческого ритма» перед ответом: чаще быстро,
+ * иногда задумался, изредка отвлёкся на пару минут. Ночью медленнее.
+ * @return {number} миллисекунды задержки.
+ */
+function humanIdleMs() {
+  const r = Math.random();
+  let ms;
+  if (r < 0.6) ms = randInt(2000, 8000); // 60%: почти сразу
+  else if (r < 0.88) ms = randInt(12000, 50000); // 28%: задумался
+  else ms = randInt(70000, 240000); // 12%: отвлёкся
+  const hour = moscowTimeContext().hour;
+  if (hour >= 1 && hour < 7) ms = Math.min(ms * 3, 420000);
+  return ms;
+}
+
 /** Сообщение боту: «печатает» и отвечает через ИИ. */
 async function handleBotReply(message) {
   const [receiverDoc, senderDoc] = await Promise.all([
@@ -310,47 +418,82 @@ async function handleBotReply(message) {
 
   console.log(`СООБЩЕНИЕ боту ${bot.name}: ${message.text}`);
 
-  const historySnapshot = await db
-      .collection("messages")
-      .where("chatId", "==", chatId)
-      .get();
-
-  const history = historySnapshot.docs
-      .map((d) => d.data())
-      .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
-      .slice(-20)
-      .map((m) => ({
-        role: m.senderId === botId ? "assistant" : "user",
-        content: m.text || (m.mediaType === "video" ?
-            "[собеседник прислал видео — ты его посмотрел(а)]" :
-            "[собеседник прислал фото — ты его посмотрел(а)]"),
-      }));
+  // Регистрируем себя как самый свежий обработчик этого чата.
+  const token = Date.now() + Math.random();
+  pendingReplies.set(chatId, token);
 
   try {
-    await touchBotPresence(botId);
-    await sleep(randInt(2000, 6000));
+    // Человеческая пауза ДО появления «печатает».
+    await sleep(humanIdleMs());
+    if (pendingReplies.get(chatId) !== token) return;
 
-    await db.collection("chats").doc(chatId).update({
-      typingUsers: admin.firestore.FieldValue.arrayUnion(botId),
-    });
+    // Историю читаем ПОСЛЕ паузы, чтобы увидеть все свежие сообщения.
+    const historySnapshot = await db
+        .collection("messages")
+        .where("chatId", "==", chatId)
+        .get();
+
+    const history = historySnapshot.docs
+        .map((d) => d.data())
+        .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
+        .slice(-20)
+        .map((m) => ({
+          role: m.senderId === botId ? "assistant" : "user",
+          content: m.text || (m.mediaType === "video" ?
+              "[собеседник прислал видео — ты его посмотрел(а)]" :
+              "[собеседник прислал фото — ты его посмотрел(а)]"),
+        }));
+
+    await touchBotPresence(botId);
 
     const reply = await callOpenRouter([
       {role: "system", content: buildPersonaPrompt(bot, user)},
       ...history,
     ]);
+    if (pendingReplies.get(chatId) !== token) return;
 
-    const typingMs = Math.min(Math.max(reply.length * 55, 2000), 9000);
-    await sleep(typingMs);
+    // Разрезаем ответ на пузыри по разделителю || (максимум 3).
+    const bubbles = reply
+        .split("||")
+        .map((s) => s.trim().replace(/^["«»]+|["«»]+$/g, ""))
+        .filter(Boolean)
+        .slice(0, 3);
+    if (bubbles.length === 0) return;
 
-    await sendBotMessage(chatId, botId, userId, reply);
+    for (let i = 0; i < bubbles.length; i++) {
+      const bubble = bubbles[i];
+
+      await db.collection("chats").doc(chatId).update({
+        typingUsers: admin.firestore.FieldValue.arrayUnion(botId),
+      });
+
+      const typingMs = Math.min(Math.max(bubble.length * 55, 1500), 9000);
+      await sleep(typingMs);
+      if (pendingReplies.get(chatId) !== token) return;
+
+      await sendBotMessage(chatId, botId, userId, bubble);
+      console.log(`БОТ ${bot.name} ответил: ${bubble}`);
+
+      // Микропауза между пузырями, «печатает» гаснет и зажигается.
+      if (i < bubbles.length - 1) {
+        await db.collection("chats").doc(chatId).update({
+          typingUsers: admin.firestore.FieldValue.arrayRemove(botId),
+        });
+        await sleep(randInt(700, 2200));
+        if (pendingReplies.get(chatId) !== token) return;
+      }
+    }
+
     await touchBotPresence(botId);
-    console.log(`БОТ ${bot.name} ответил: ${reply}`);
   } catch (e) {
     console.error(`Бот ${botId} не смог ответить: ${e.message}`);
   } finally {
-    await db.collection("chats").doc(chatId).update({
-      typingUsers: admin.firestore.FieldValue.arrayRemove(botId),
-    }).catch(() => null);
+    if (pendingReplies.get(chatId) === token) {
+      pendingReplies.delete(chatId);
+      await db.collection("chats").doc(chatId).update({
+        typingUsers: admin.firestore.FieldValue.arrayRemove(botId),
+      }).catch(() => null);
+    }
   }
 }
 
