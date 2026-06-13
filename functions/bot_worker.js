@@ -373,6 +373,12 @@ async function handleLike(like) {
 
   console.log(`ЛАЙК: ${user.name} (${fromUserId}) → бот ${bot.name}`);
 
+  // Бот отвечает взаимным лайком только с вероятностью 10%
+  if (Math.random() >= 0.10) {
+    console.log(`БОТ ${bot.name} решил не отвечать на лайк (случайный пропуск).`);
+    return;
+  }
+
   const reverseLikeId = `${toUserId}_${fromUserId}`;
   await db.collection("likes").doc(reverseLikeId).set({
     fromUserId: toUserId,
