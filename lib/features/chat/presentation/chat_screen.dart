@@ -77,6 +77,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Профиль собеседника
+  // -------------------------------------------------------------------------
+
+  void _showUserProfileSheet(Map<String, dynamic> user) {
+    if (user.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _UserProfileSheet(user: user),
+    );
+  }
+
   Future<void> sendMessage() async {
     if (messageController.text.trim().isEmpty) return;
     await ref.read(chatRepositoryProvider).sendMessage(chatId: widget.chatId, text: messageController.text.trim());
@@ -359,28 +374,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           final photoUrl = photos.isNotEmpty ? photos.first : null;
                           return Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: LuxuryColors.gold, width: 2.0)),
-                                child: CircleAvatar(
-                                  radius: 20,
-                                  backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
-                                  child: photoUrl == null ? const Icon(Icons.person) : null,
+                              GestureDetector(
+                                onTap: () => _showUserProfileSheet(otherUser),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: LuxuryColors.gold, width: 2.0)),
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundImage: photoUrl != null ? CachedNetworkImageProvider(photoUrl) : null,
+                                    child: photoUrl == null ? const Icon(Icons.person) : null,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(otherUser['name'] ?? 'Пользователь', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                  Builder(builder: (_) {
-                                    final online = isUserOnline(otherUser);
-                                    return Text(
-                                      online ? 'Онлайн' : 'Не в сети',
-                                      style: TextStyle(color: online ? LuxuryColors.online : Colors.white54, fontSize: 11),
-                                    );
-                                  }),
-                                ],
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _showUserProfileSheet(otherUser),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(otherUser['name'] ?? 'Пользователь', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Builder(builder: (_) {
+                                        final online = isUserOnline(otherUser);
+                                        return Text(
+                                          online ? 'Онлайн' : 'Не в сети',
+                                          style: TextStyle(color: online ? LuxuryColors.online : Colors.white54, fontSize: 11),
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           );
@@ -681,6 +705,262 @@ class _VideoViewerScreenState extends State<_VideoViewerScreen> {
                 ),
               ),
       ),
+    );
+  }
+}
+// ---------------------------------------------------------------------------
+// Шит с профилем собеседника (фото + информация)
+// ---------------------------------------------------------------------------
+
+class _UserProfileSheet extends StatefulWidget {
+  final Map<String, dynamic> user;
+
+  const _UserProfileSheet({required this.user});
+
+  @override
+  State<_UserProfileSheet> createState() => _UserProfileSheetState();
+}
+
+class _UserProfileSheetState extends State<_UserProfileSheet> {
+  final _pageController = PageController();
+  int _photoIndex = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    final photos = List<String>.from(user['photoUrls'] ?? []);
+    final name = (user['name'] ?? 'Пользователь').toString();
+    final age = user['age'];
+    final city = (user['city'] ?? '').toString();
+    final bio = (user['bio'] ?? '').toString();
+    final online = isUserOnline(user);
+
+    final title = age != null && age.toString().isNotEmpty ? '$name, $age' : name;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: LuxuryColors.black,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(
+              top: BorderSide(color: LuxuryColors.gold, width: 1.5),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ListView(
+            controller: scrollController,
+            padding: EdgeInsets.zero,
+            children: [
+              // Полоска-ручка
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 6),
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Галерея фото
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: AspectRatio(
+                    aspectRatio: 3 / 4,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (photos.isEmpty)
+                          Container(
+                            color: LuxuryColors.card,
+                            child: const Icon(Icons.person,
+                                size: 80, color: Colors.white24),
+                          )
+                        else
+                          PageView.builder(
+                            controller: _pageController,
+                            itemCount: photos.length,
+                            onPageChanged: (i) =>
+                                setState(() => _photoIndex = i),
+                            itemBuilder: (_, i) => CachedNetworkImage(
+                              imageUrl: photos[i],
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: LuxuryColors.card,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: LuxuryColors.gold,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: LuxuryColors.card,
+                                child: const Icon(Icons.broken_image,
+                                    color: Colors.white24),
+                              ),
+                            ),
+                          ),
+
+                        // Индикаторы фото
+                        if (photos.length > 1)
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            right: 10,
+                            child: Row(
+                              children: List.generate(
+                                photos.length,
+                                (i) => Expanded(
+                                  child: Container(
+                                    height: 3,
+                                    margin:
+                                        const EdgeInsets.symmetric(horizontal: 2),
+                                    decoration: BoxDecoration(
+                                      color: i == _photoIndex
+                                          ? LuxuryColors.gold
+                                          : Colors.white38,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // Затемнение снизу для читаемости статуса
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 70,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.6),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Статус онлайн
+                        Positioned(
+                          left: 12,
+                          bottom: 12,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 9,
+                                height: 9,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: online
+                                      ? LuxuryColors.online
+                                      : Colors.white38,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                online ? 'Онлайн' : 'Не в сети',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Имя + возраст
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              // Город
+              if (city.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined,
+                          size: 16, color: LuxuryColors.muted),
+                      const SizedBox(width: 4),
+                      Text(
+                        city,
+                        style: const TextStyle(
+                          color: LuxuryColors.muted,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Bio
+              if (bio.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(18, 18, 18, 6),
+                  child: Text(
+                    'О себе',
+                    style: TextStyle(
+                      color: LuxuryColors.gold,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                  child: Text(
+                    bio,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -18,10 +18,12 @@ class ChatsScreen extends ConsumerWidget {
     final currentUserId = ref.read(chatRepositoryProvider).currentUserId;
 
     return Scaffold(
+      extendBody: true,
       body: LuxuryScreen(
         child: SafeArea(
+          bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 104),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -55,6 +57,9 @@ class ChatsScreen extends ConsumerWidget {
                       }).toList();
                       if (visibleChats.isEmpty) return const Center(child: Text('Чатов пока нет'));
                       return ListView.separated(
+                        padding: EdgeInsets.only(
+                          bottom: 104 + MediaQuery.of(context).padding.bottom,
+                        ),
                         itemCount: visibleChats.length,
                         separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.06), indent: 72),
                         itemBuilder: (context, index) {
