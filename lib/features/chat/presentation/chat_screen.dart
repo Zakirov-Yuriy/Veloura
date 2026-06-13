@@ -1,12 +1,19 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show FontFeature;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:record/record.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/presence.dart';
@@ -89,6 +96,100 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _UserProfileSheet(user: user),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Действия с сообщением (долгое нажатие)
+  // -------------------------------------------------------------------------
+
+  void _showMessageActions(Map<String, dynamic> message, bool isMe) {
+    final text = (message['text'] as String?) ?? '';
+    final hasText = text.trim().isNotEmpty;
+    final messageId = message['id'] as String?;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1B1B1B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (hasText)
+              ListTile(
+                leading: const Icon(Icons.copy, color: Colors.white70),
+                title: const Text('Копировать', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: text));
+                  Navigator.pop(sheetContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Скопировано'), duration: Duration(seconds: 1)),
+                  );
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              title: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                if (messageId != null) _confirmDeleteMessage(messageId);
+              },
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteMessage(String messageId) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1B1B1B),
+        title: const Text('Удалить сообщение?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Сообщение будет удалено без возможности восстановления.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Отмена', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await ref.read(chatRepositoryProvider).deleteMessage(
+                      chatId: widget.chatId,
+                      messageId: messageId,
+                    );
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Не удалось удалить: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -210,6 +311,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSendingMedia = false);
+    }
+  }
+
+  Future<void> _uploadAndSendVoice(File file, int durationMs) async {
+    setState(() => _isSendingMedia = true);
+
+    try {
+      final url = await ref.read(cloudinaryServiceProvider).uploadChatMedia(file);
+
+      await ref.read(chatRepositoryProvider).sendVoiceMessage(
+            chatId: widget.chatId,
+            audioUrl: url,
+            durationMs: durationMs,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось отправить голосовое: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSendingMedia = false);
+      // Удаляем временный файл записи.
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
     }
   }
 
@@ -470,13 +597,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         final tickIcon = isPending ? Icons.done : Icons.done_all;
                         final tickColor = isReadByOther ? const Color(0xFF6CD7FF) : Colors.white60;
                         final hasMedia = (message['mediaUrl'] as String?)?.isNotEmpty == true;
-                        final bubble = Align(
+                        final isAudio = message['mediaType'] == 'audio';
+                        final isVisualMedia = hasMedia && !isAudio;
+                        final bubble = GestureDetector(
+                          onLongPress: () => _showMessageActions(message, isMe),
+                          child: Align(
                           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 12),
-                            padding: hasMedia
+                            padding: isVisualMedia
                                 ? const EdgeInsets.all(4)
-                                : const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+                                : isAudio
+                                    ? const EdgeInsets.fromLTRB(8, 8, 12, 8)
+                                    : const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
                             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
                             decoration: BoxDecoration(
                               gradient: isMe ? luxuryGradient : null,
@@ -489,7 +622,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               ),
                               border: Border.all(color: isMe ? Colors.transparent : Colors.white.withOpacity(0.05)),
                             ),
-                            child: hasMedia
+                            child: isAudio
+                                ? _VoiceMessageBubble(
+                                    key: ValueKey(message['mediaUrl']),
+                                    url: message['mediaUrl'] as String,
+                                    durationMs: (message['audioDurationMs'] as num?)?.toInt() ?? 0,
+                                    isMe: isMe,
+                                    timeText: timeText,
+                                    tickIcon: tickIcon,
+                                    tickColor: tickColor,
+                                  )
+                                : isVisualMedia
                                 ? Stack(
                                     children: [
                                       _buildMediaBubble(message),
@@ -536,6 +679,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     ],
                                   ),
                           ),
+                        ),
                         );
                         if (!showDateChip) return bubble;
                         return Column(
@@ -553,42 +697,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               SafeArea(
                 top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  child: Row(
-                    children: [
-                      _isSendingMedia
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(color: LuxuryColors.gold, strokeWidth: 2),
-                            )
-                          : IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 24),
-                              onPressed: _showAttachmentSheet,
-                              icon: const Icon(Icons.attach_file, color: Colors.white),
-                            ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: luxuryInputDecoration('Сообщение...'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: sendMessage,
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(shape: BoxShape.circle, gradient: luxuryGradient),
-                          child: const Icon(Icons.send, color: Colors.white, size: 21),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: _ChatInputBar(
+                  controller: messageController,
+                  isSendingMedia: _isSendingMedia,
+                  onAttach: _showAttachmentSheet,
+                  onSendText: sendMessage,
+                  onSendVoice: _uploadAndSendVoice,
                 ),
               ),
             ],
@@ -963,4 +1077,710 @@ class _UserProfileSheetState extends State<_UserProfileSheet> {
       },
     );
   }
+}
+
+// ===========================================================================
+// Поле ввода с записью голосовых сообщений (стиль Telegram)
+// ===========================================================================
+
+class _ChatInputBar extends StatefulWidget {
+  final TextEditingController controller;
+  final bool isSendingMedia;
+  final VoidCallback onAttach;
+  final VoidCallback onSendText;
+  final Future<void> Function(File file, int durationMs) onSendVoice;
+
+  const _ChatInputBar({
+    required this.controller,
+    required this.isSendingMedia,
+    required this.onAttach,
+    required this.onSendText,
+    required this.onSendVoice,
+  });
+
+  @override
+  State<_ChatInputBar> createState() => _ChatInputBarState();
+}
+
+class _ChatInputBarState extends State<_ChatInputBar> {
+  final _recorder = AudioRecorder();
+
+  bool _hasText = false;
+  bool _isRecording = false;
+  bool _showEmoji = false;
+
+  final _focusNode = FocusNode();
+
+  String? _recordPath;
+  DateTime? _recordStart;
+  Timer? _timer;
+  Duration _elapsed = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTextChanged);
+    // При фокусе на поле ввода прячем панель эмодзи.
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && _showEmoji) {
+        setState(() => _showEmoji = false);
+      }
+    });
+  }
+
+  void _onTextChanged() {
+    final has = widget.controller.text.trim().isNotEmpty;
+    if (has != _hasText) {
+      setState(() => _hasText = has);
+    }
+  }
+
+  // Переключение панели эмодзи.
+  void _toggleEmoji() {
+    if (_showEmoji) {
+      // Скрываем панель и возвращаем клавиатуру.
+      setState(() => _showEmoji = false);
+      _focusNode.requestFocus();
+    } else {
+      // Прячем клавиатуру и показываем панель.
+      _focusNode.unfocus();
+      setState(() => _showEmoji = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    _focusNode.dispose();
+    _timer?.cancel();
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  // --------------------------------------------------------------------------
+  // Запись
+  // --------------------------------------------------------------------------
+
+  Future<void> _startRecording() async {
+    final hasPermission = await _recorder.hasPermission();
+    if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Нет доступа к микрофону')),
+        );
+      }
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    await _recorder.start(
+      const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100),
+      path: path,
+    );
+
+    _recordPath = path;
+    _recordStart = DateTime.now();
+    _elapsed = Duration.zero;
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted || _recordStart == null) return;
+      setState(() => _elapsed = DateTime.now().difference(_recordStart!));
+    });
+
+    setState(() => _isRecording = true);
+  }
+
+  Future<void> _stopAndSend() async {
+    _timer?.cancel();
+    final duration = _elapsed;
+    final path = await _recorder.stop();
+
+    setState(() {
+      _isRecording = false;
+    });
+
+    if (path == null) return;
+
+    // Слишком короткая запись — игнорируем.
+    if (duration.inMilliseconds < 800) {
+      _safeDelete(path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Слишком короткая запись')),
+        );
+      }
+      return;
+    }
+
+    await widget.onSendVoice(File(path), duration.inMilliseconds);
+  }
+
+  Future<void> _cancelRecording() async {
+    _timer?.cancel();
+    final path = await _recorder.stop();
+    setState(() {
+      _isRecording = false;
+    });
+    _safeDelete(path ?? _recordPath);
+  }
+
+  void _safeDelete(String? path) {
+    if (path == null) return;
+    try {
+      final f = File(path);
+      if (f.existsSync()) f.deleteSync();
+    } catch (_) {}
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final cs = (d.inMilliseconds.remainder(1000) ~/ 10).toString().padLeft(2, '0');
+    return '$m:$s,$cs';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: _isRecording ? _buildRecordingBar() : _buildIdleBar(),
+        ),
+        // Панель эмодзи (показывается под полем ввода).
+        Offstage(
+          offstage: !_showEmoji,
+          child: SizedBox(
+            height: 280,
+            child: EmojiPicker(
+              textEditingController: widget.controller,
+              config: Config(
+                height: 280,
+                checkPlatformCompatibility: true,
+                emojiViewConfig: const EmojiViewConfig(
+                  backgroundColor: Color(0xFF1B1B1B),
+                  columns: 8,
+                  emojiSizeMax: 28,
+                ),
+                categoryViewConfig: const CategoryViewConfig(
+                  backgroundColor: Color(0xFF1B1B1B),
+                  indicatorColor: LuxuryColors.gold,
+                  iconColorSelected: LuxuryColors.gold,
+                  iconColor: Colors.white38,
+                  backspaceColor: LuxuryColors.gold,
+                ),
+                bottomActionBarConfig: const BottomActionBarConfig(
+                  backgroundColor: Color(0xFF151515),
+                  buttonColor: Color(0xFF1B1B1B),
+                  buttonIconColor: Colors.white54,
+                ),
+                searchViewConfig: const SearchViewConfig(
+                  backgroundColor: Color(0xFF1B1B1B),
+                  buttonIconColor: Colors.white54,
+                  hintText: 'Поиск',
+                ),
+                skinToneConfig: const SkinToneConfig(
+                  dialogBackgroundColor: Color(0xFF1B1B1B),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Обычная панель ввода.
+  Widget _buildIdleBar() {
+    final showSend = _hasText;
+
+    return Row(
+      children: [
+        widget.isSendingMedia
+            ? const SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(color: LuxuryColors.gold, strokeWidth: 2),
+                  ),
+                ),
+              )
+            : IconButton(
+                onPressed: widget.onAttach,
+                icon: const Icon(Icons.attach_file, color: Colors.white70),
+              ),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B1B1B),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.06)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: widget.controller,
+                    focusNode: _focusNode,
+                    style: const TextStyle(color: Colors.white),
+                    minLines: 1,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    onTap: () {
+                      if (_showEmoji) setState(() => _showEmoji = false);
+                    },
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      hintText: 'Сообщение',
+                      hintStyle: TextStyle(color: LuxuryColors.muted),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _toggleEmoji,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(
+                      _showEmoji
+                          ? Icons.keyboard_outlined
+                          : Icons.emoji_emotions_outlined,
+                      color: _showEmoji
+                          ? LuxuryColors.gold
+                          : Colors.white.withOpacity(0.55),
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Кнопка: отправка текста ИЛИ микрофон.
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          transitionBuilder: (child, anim) =>
+              ScaleTransition(scale: anim, child: child),
+          child: showSend
+              ? GestureDetector(
+                  key: const ValueKey('send'),
+                  onTap: widget.onSendText,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: luxuryGradient,
+                    ),
+                    child: const Icon(Icons.send, color: Colors.white, size: 21),
+                  ),
+                )
+              : GestureDetector(
+                  key: const ValueKey('mic'),
+                  onTap: _startRecording,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: luxuryGradient,
+                    ),
+                    child: const Icon(Icons.mic, color: Colors.white, size: 22),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  // Панель во время записи.
+  Widget _buildRecordingBar() {
+    return Row(
+      children: [
+        // Кнопка отмены (удалить запись).
+        GestureDetector(
+          onTap: _cancelRecording,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.08),
+            ),
+            child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Красная мигающая точка + таймер.
+        _BlinkingDot(),
+        const SizedBox(width: 10),
+        Text(
+          _fmt(_elapsed),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Text(
+              'Идёт запись…',
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Кнопка отправки (тап — отправить голосовое).
+        GestureDetector(
+          onTap: _stopAndSend,
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: luxuryGradient,
+              boxShadow: [
+                BoxShadow(
+                  color: LuxuryColors.gold.withOpacity(0.35),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.send, color: Colors.white, size: 24),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Мигающая красная точка во время записи.
+class _BlinkingDot extends StatefulWidget {
+  @override
+  State<_BlinkingDot> createState() => _BlinkingDotState();
+}
+
+class _BlinkingDotState extends State<_BlinkingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween(begin: 1.0, end: 0.2).animate(_c),
+      child: Container(
+        width: 12,
+        height: 12,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.redAccent,
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Плеер голосового сообщения (волна + play/pause + время)
+// ===========================================================================
+
+class _VoiceMessageBubble extends StatefulWidget {
+  final String url;
+  final int durationMs;
+  final bool isMe;
+  final String timeText;
+  final IconData tickIcon;
+  final Color tickColor;
+
+  const _VoiceMessageBubble({
+    super.key,
+    required this.url,
+    required this.durationMs,
+    required this.isMe,
+    required this.timeText,
+    required this.tickIcon,
+    required this.tickColor,
+  });
+
+  @override
+  State<_VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
+}
+
+class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
+  AudioPlayer? _player;
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  bool _prepared = false;
+
+  Duration _position = Duration.zero;
+  Duration _total = Duration.zero;
+
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<PlayerState>? _stateSub;
+
+  // Псевдо-волна: стабильный набор высот, детерминированный от URL,
+  // чтобы у одного сообщения волна не менялась между перерисовками.
+  late final List<double> _bars = _generateBars(widget.url);
+
+  static List<double> _generateBars(String seedStr) {
+    final seed = seedStr.hashCode;
+    final rnd = (int i) {
+      final x = ((seed ^ (i * 2654435761)) & 0x7fffffff) / 0x7fffffff;
+      return x;
+    };
+    return List.generate(34, (i) {
+      final v = rnd(i);
+      return 0.25 + v * 0.75; // от 0.25 до 1.0
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.durationMs > 0) {
+      _total = Duration(milliseconds: widget.durationMs);
+    }
+  }
+
+  Future<void> _ensurePrepared() async {
+    if (_prepared) return;
+    _player = AudioPlayer();
+    _prepared = true;
+
+    _posSub = _player!.positionStream.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+
+    _stateSub = _player!.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = state.playing &&
+            state.processingState != ProcessingState.completed;
+        _isLoading = state.processingState == ProcessingState.loading ||
+            state.processingState == ProcessingState.buffering;
+      });
+      if (state.processingState == ProcessingState.completed) {
+        _player!.pause();
+        _player!.seek(Duration.zero);
+        if (mounted) {
+          setState(() {
+            _isPlaying = false;
+            _position = Duration.zero;
+          });
+        }
+      }
+    });
+
+    setState(() => _isLoading = true);
+    try {
+      final dur = await _player!.setUrl(widget.url);
+      if (dur != null && mounted) setState(() => _total = dur);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось загрузить голосовое')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggle() async {
+    await _ensurePrepared();
+    if (_player == null) return;
+    if (_isPlaying) {
+      await _player!.pause();
+    } else {
+      await _player!.play();
+    }
+  }
+
+  @override
+  void dispose() {
+    _posSub?.cancel();
+    _stateSub?.cancel();
+    _player?.dispose();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(1, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (_total.inMilliseconds > 0)
+        ? (_position.inMilliseconds / _total.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    final activeColor = widget.isMe ? Colors.white : LuxuryColors.gold;
+    final inactiveColor =
+        widget.isMe ? Colors.white.withOpacity(0.4) : Colors.white24;
+
+    final shownDuration = _isPlaying || _position > Duration.zero
+        ? _position
+        : (_total > Duration.zero ? _total : Duration.zero);
+
+    return SizedBox(
+      width: 220,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Кнопка play/pause.
+          GestureDetector(
+            onTap: _toggle,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.isMe ? Colors.white.withOpacity(0.22) : LuxuryColors.gold,
+              ),
+              child: _isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(11),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: widget.isMe ? Colors.white : Colors.black,
+                      size: 26,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Волна + время.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 26,
+                  child: GestureDetector(
+                    onTapDown: (d) async {
+                      await _ensurePrepared();
+                      final box = context.findRenderObject() as RenderBox?;
+                      if (box == null || _total == Duration.zero) return;
+                      final local = d.localPosition.dx;
+                      final ratio = (local / box.size.width).clamp(0.0, 1.0);
+                      await _player?.seek(_total * ratio);
+                    },
+                    child: CustomPaint(
+                      size: const Size(double.infinity, 26),
+                      painter: _WaveformPainter(
+                        bars: _bars,
+                        progress: progress,
+                        activeColor: activeColor,
+                        inactiveColor: inactiveColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      _fmt(shownDuration),
+                      style: TextStyle(
+                        color: widget.isMe ? Colors.white70 : Colors.white54,
+                        fontSize: 11,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      widget.timeText,
+                      style: TextStyle(
+                        color: widget.isMe ? Colors.white60 : Colors.white38,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                    if (widget.isMe) ...[
+                      const SizedBox(width: 4),
+                      Icon(widget.tickIcon, size: 13, color: widget.tickColor),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaveformPainter extends CustomPainter {
+  final List<double> bars;
+  final double progress;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  _WaveformPainter({
+    required this.bars,
+    required this.progress,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (bars.isEmpty) return;
+    const gap = 2.0;
+    final barWidth = (size.width - gap * (bars.length - 1)) / bars.length;
+    final paint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.fill;
+
+    final activeBars = (bars.length * progress).round();
+
+    for (var i = 0; i < bars.length; i++) {
+      final h = bars[i] * size.height;
+      final x = i * (barWidth + gap);
+      final top = (size.height - h) / 2;
+      paint.color = i < activeBars ? activeColor : inactiveColor;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, top, barWidth, h),
+        Radius.circular(barWidth / 2),
+      );
+      canvas.drawRRect(rect, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaveformPainter old) =>
+      old.progress != progress ||
+      old.activeColor != activeColor ||
+      old.inactiveColor != inactiveColor;
 }

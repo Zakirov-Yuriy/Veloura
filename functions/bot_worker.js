@@ -416,7 +416,8 @@ async function handleBotReply(message) {
   const botId = message.receiverId;
   const userId = message.senderId;
 
-  console.log(`СООБЩЕНИЕ боту ${bot.name}: ${message.text}`);
+  console.log(`СООБЩЕНИЕ боту ${bot.name}: ` +
+    (message.text || `[${message.mediaType || "вложение"}]`));
 
   // Регистрируем себя как самый свежий обработчик этого чата.
   const token = Date.now() + Math.random();
@@ -437,12 +438,26 @@ async function handleBotReply(message) {
         .map((d) => d.data())
         .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
         .slice(-20)
-        .map((m) => ({
-          role: m.senderId === botId ? "assistant" : "user",
-          content: m.text || (m.mediaType === "video" ?
-              "[собеседник прислал видео — ты его посмотрел(а)]" :
-              "[собеседник прислал фото — ты его посмотрел(а)]"),
-        }));
+        .map((m) => {
+          let content = m.text;
+          if (!content) {
+            if (m.mediaType === "audio") {
+              content = "[собеседник прислал голосовое сообщение — " +
+                "ты его прослушал(а), но не разобрал(а) слова; " +
+                "попроси его написать текстом или переспроси, о чём оно]";
+            } else if (m.mediaType === "video") {
+              content = "[собеседник прислал видео — ты его посмотрел(а)]";
+            } else if (m.mediaType === "image") {
+              content = "[собеседник прислал фото — ты его посмотрел(а)]";
+            } else {
+              content = "[собеседник прислал вложение]";
+            }
+          }
+          return {
+            role: m.senderId === botId ? "assistant" : "user",
+            content: content,
+          };
+        });
 
     await touchBotPresence(botId);
 

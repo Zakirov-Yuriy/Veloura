@@ -64,6 +64,8 @@ class ChatRepository {
       final messages = snapshot.docs
           .map((doc) => {
                 ...doc.data(),
+                // id документа — нужен для удаления и других операций.
+                'id': doc.id,
                 // true, пока запись не подтверждена сервером —
                 // используется для статуса «отправлено/доставлено».
                 '_pending': doc.metadata.hasPendingWrites,
@@ -161,6 +163,105 @@ class ChatRepository {
       'lastMessageSenderId': userId,
       'unreadCount': FieldValue.increment(1),
       'unreadBy': FieldValue.arrayUnion([receiverId]),
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
+  /// Отправка голосового сообщения.
+  ///
+  /// [audioUrl] — ссылка на загруженный аудиофайл.
+  /// [durationMs] — длительность записи в миллисекундах.
+  Future<void> sendVoiceMessage({
+    required String chatId,
+    required String audioUrl,
+    required int durationMs,
+  }) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
+    final chatDoc =
+        await _firestore.collection('chats').doc(chatId).get();
+
+    final chatData = chatDoc.data() ?? {};
+
+    final members =
+        List<String>.from(chatData['members'] ?? []);
+
+    final receiverId = members.firstWhere(
+      (id) => id != userId,
+    );
+
+    await _firestore.collection('messages').add({
+      'chatId': chatId,
+      'senderId': userId,
+      'receiverId': receiverId,
+      'text': '',
+      'mediaUrl': audioUrl,
+      'mediaType': 'audio',
+      'audioDurationMs': durationMs,
+      'createdAt': Timestamp.now(),
+      'readBy': [userId],
+    });
+
+    await _firestore.collection('chats').doc(chatId).update({
+      'lastMessage': '🎤 Голосовое сообщение',
+      'lastMessageSenderId': userId,
+      'unreadCount': FieldValue.increment(1),
+      'unreadBy': FieldValue.arrayUnion([receiverId]),
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
+  /// Удаление сообщения по его id.
+  ///
+  /// После удаления, если это было последнее сообщение в чате,
+  /// пересчитывает превью (lastMessage) в документе чата.
+  Future<void> deleteMessage({
+    required String chatId,
+    required String messageId,
+  }) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
+    await _firestore.collection('messages').doc(messageId).delete();
+
+    // Находим самое свежее оставшееся сообщение, чтобы обновить превью чата.
+    final remaining = await _firestore
+        .collection('messages')
+        .where('chatId', isEqualTo: chatId)
+        .get();
+
+    if (remaining.docs.isEmpty) {
+      await _firestore.collection('chats').doc(chatId).update({
+        'lastMessage': '',
+        'updatedAt': Timestamp.now(),
+      });
+      return;
+    }
+
+    final docs = remaining.docs.toList()
+      ..sort((a, b) {
+        final at = a.data()['createdAt'] as Timestamp;
+        final bt = b.data()['createdAt'] as Timestamp;
+        return bt.compareTo(at);
+      });
+
+    final last = docs.first.data();
+    String preview;
+    final mediaType = last['mediaType'] as String?;
+    if (mediaType == 'audio') {
+      preview = '🎤 Голосовое сообщение';
+    } else if (mediaType == 'video') {
+      preview = '🎥 Видео';
+    } else if (mediaType == 'image') {
+      preview = '📷 Фото';
+    } else {
+      preview = (last['text'] as String?) ?? '';
+    }
+
+    await _firestore.collection('chats').doc(chatId).update({
+      'lastMessage': preview,
+      'lastMessageSenderId': last['senderId'],
       'updatedAt': Timestamp.now(),
     });
   }

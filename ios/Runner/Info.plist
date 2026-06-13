@@ -68,5 +68,7 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Доступ к микрофону нужен для записи и отправки голосовых сообщений в чатах.</string>
 	</dict>
 </plist>
