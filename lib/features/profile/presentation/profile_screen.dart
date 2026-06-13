@@ -97,9 +97,9 @@ class ProfileScreen extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       child: Column(
                         children: [
-                          _ProfileMenu(icon: Icons.workspace_premium, title: 'Премиум аккаунт', onTap: () {}),
+                          // _ProfileMenu(icon: Icons.workspace_premium, title: 'Премиум аккаунт', onTap: () {}),
                           _ProfileMenu(icon: Icons.image_outlined, title: 'Мои фото', onTap: () => context.push('/profile-setup')),
-                          _ProfileMenu(icon: Icons.star_border, title: 'Избранные', onTap: () {}),
+                          // _ProfileMenu(icon: Icons.star_border, title: 'Избранные', onTap: () {}),
                           _ProfileMenu(icon: Icons.block, title: 'Заблокированные', onTap: () => context.push('/blocked-users')),
                           _ProfileMenu(
                             icon: Icons.logout,

@@ -1107,6 +1107,7 @@ class _ChatInputBarState extends State<_ChatInputBar> {
 
   bool _hasText = false;
   bool _isRecording = false;
+  bool _isPreview = false;
   bool _showEmoji = false;
 
   final _focusNode = FocusNode();
@@ -1115,6 +1116,22 @@ class _ChatInputBarState extends State<_ChatInputBar> {
   DateTime? _recordStart;
   Timer? _timer;
   Duration _elapsed = Duration.zero;
+
+  // Длительность готовой записи (фиксируется при паузе).
+  Duration _recordedDuration = Duration.zero;
+
+  // Плеер для предпрослушивания записи.
+  AudioPlayer? _previewPlayer;
+  bool _previewPlaying = false;
+  Duration _previewPosition = Duration.zero;
+  StreamSubscription<Duration>? _previewPosSub;
+  StreamSubscription<PlayerState>? _previewStateSub;
+
+  // Псевдо-волна для предпросмотра (фиксированный рисунок).
+  final List<double> _previewBars = List.generate(
+    30,
+    (i) => 0.3 + ((i * 37) % 70) / 100,
+  );
 
   @override
   void initState() {
@@ -1154,6 +1171,9 @@ class _ChatInputBarState extends State<_ChatInputBar> {
     _focusNode.dispose();
     _timer?.cancel();
     _recorder.dispose();
+    _previewPosSub?.cancel();
+    _previewStateSub?.cancel();
+    _previewPlayer?.dispose();
     super.dispose();
   }
 
@@ -1191,24 +1211,26 @@ class _ChatInputBarState extends State<_ChatInputBar> {
       setState(() => _elapsed = DateTime.now().difference(_recordStart!));
     });
 
-    setState(() => _isRecording = true);
+    setState(() {
+      _isRecording = true;
+      _isPreview = false;
+    });
   }
 
-  Future<void> _stopAndSend() async {
+  // Остановка записи и переход в предпросмотр (без отправки).
+  Future<void> _pauseRecording() async {
     _timer?.cancel();
     final duration = _elapsed;
     final path = await _recorder.stop();
 
-    setState(() {
-      _isRecording = false;
-    });
-
-    if (path == null) return;
-
-    // Слишком короткая запись — игнорируем.
-    if (duration.inMilliseconds < 800) {
-      _safeDelete(path);
-      if (mounted) {
+    // Слишком короткая запись — отменяем целиком.
+    if (path == null || duration.inMilliseconds < 800) {
+      _safeDelete(path ?? _recordPath);
+      setState(() {
+        _isRecording = false;
+        _isPreview = false;
+      });
+      if (mounted && duration.inMilliseconds < 800) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Слишком короткая запись')),
         );
@@ -1216,14 +1238,101 @@ class _ChatInputBarState extends State<_ChatInputBar> {
       return;
     }
 
+    _recordPath = path;
+    _recordedDuration = duration;
+
+    // Готовим плеер для прослушивания.
+    await _preparePreviewPlayer(path);
+
+    setState(() {
+      _isRecording = false;
+      _isPreview = true;
+      _previewPosition = Duration.zero;
+      _previewPlaying = false;
+    });
+  }
+
+  Future<void> _preparePreviewPlayer(String path) async {
+    _previewPosSub?.cancel();
+    _previewStateSub?.cancel();
+    await _previewPlayer?.dispose();
+
+    final player = AudioPlayer();
+    _previewPlayer = player;
+
+    _previewPosSub = player.positionStream.listen((p) {
+      if (mounted) setState(() => _previewPosition = p);
+    });
+    _previewStateSub = player.playerStateStream.listen((state) {
+      if (!mounted) return;
+      if (state.processingState == ProcessingState.completed) {
+        player.pause();
+        player.seek(Duration.zero);
+        setState(() {
+          _previewPlaying = false;
+          _previewPosition = Duration.zero;
+        });
+      } else {
+        setState(() => _previewPlaying = state.playing);
+      }
+    });
+
+    try {
+      await player.setFilePath(path);
+    } catch (_) {}
+  }
+
+  Future<void> _togglePreviewPlay() async {
+    final player = _previewPlayer;
+    if (player == null) return;
+    if (_previewPlaying) {
+      await player.pause();
+    } else {
+      await player.play();
+    }
+  }
+
+  // Отправка записи из предпросмотра.
+  Future<void> _sendPreview() async {
+    final path = _recordPath;
+    final duration = _recordedDuration;
+    await _disposePreviewPlayer();
+
+    setState(() {
+      _isPreview = false;
+      _isRecording = false;
+    });
+
+    if (path == null) return;
     await widget.onSendVoice(File(path), duration.inMilliseconds);
   }
 
+  // Удаление записи из предпросмотра.
+  Future<void> _discardPreview() async {
+    final path = _recordPath;
+    await _disposePreviewPlayer();
+    setState(() {
+      _isPreview = false;
+      _isRecording = false;
+    });
+    _safeDelete(path);
+  }
+
+  Future<void> _disposePreviewPlayer() async {
+    await _previewPosSub?.cancel();
+    await _previewStateSub?.cancel();
+    await _previewPlayer?.dispose();
+    _previewPlayer = null;
+    _previewPlaying = false;
+  }
+
+  // Отмена прямо во время записи (корзина на панели записи).
   Future<void> _cancelRecording() async {
     _timer?.cancel();
     final path = await _recorder.stop();
     setState(() {
       _isRecording = false;
+      _isPreview = false;
     });
     _safeDelete(path ?? _recordPath);
   }
@@ -1243,6 +1352,12 @@ class _ChatInputBarState extends State<_ChatInputBar> {
     return '$m:$s,$cs';
   }
 
+  String _fmtShort(Duration d) {
+    final m = d.inMinutes.remainder(60).toString();
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1250,7 +1365,11 @@ class _ChatInputBarState extends State<_ChatInputBar> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: _isRecording ? _buildRecordingBar() : _buildIdleBar(),
+          child: _isPreview
+              ? _buildPreviewBar()
+              : _isRecording
+                  ? _buildRecordingBar()
+                  : _buildIdleBar(),
         ),
         // Панель эмодзи (показывается под полем ввода).
         Offstage(
@@ -1444,9 +1563,9 @@ class _ChatInputBarState extends State<_ChatInputBar> {
           ),
         ),
         const SizedBox(width: 8),
-        // Кнопка отправки (тап — отправить голосовое).
+        // Кнопка паузы (тап — остановить и перейти к предпросмотру).
         GestureDetector(
-          onTap: _stopAndSend,
+          onTap: _pauseRecording,
           child: Container(
             width: 56,
             height: 56,
@@ -1461,7 +1580,100 @@ class _ChatInputBarState extends State<_ChatInputBar> {
                 ),
               ],
             ),
-            child: const Icon(Icons.send, color: Colors.white, size: 24),
+            child: const Icon(Icons.pause, color: Colors.white, size: 26),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Панель предпросмотра записи: удалить — прослушать — отправить.
+  Widget _buildPreviewBar() {
+    final total = _recordedDuration.inMilliseconds > 0
+        ? _recordedDuration
+        : const Duration(milliseconds: 1);
+    final progress =
+        (_previewPosition.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+    final shown = _previewPlaying || _previewPosition > Duration.zero
+        ? _previewPosition
+        : _recordedDuration;
+
+    return Row(
+      children: [
+        // Удалить запись.
+        GestureDetector(
+          onTap: _discardPreview,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.08),
+            ),
+            child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Плеер: play/pause + волна + время.
+        Expanded(
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B1B1B),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.06)),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _togglePreviewPlay,
+                  child: Icon(
+                    _previewPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                    color: LuxuryColors.gold,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 24,
+                    child: CustomPaint(
+                      size: const Size(double.infinity, 24),
+                      painter: _WaveformPainter(
+                        bars: _previewBars,
+                        progress: progress,
+                        activeColor: LuxuryColors.gold,
+                        inactiveColor: Colors.white24,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _fmtShort(shown),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Отправить.
+        GestureDetector(
+          onTap: _sendPreview,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: luxuryGradient,
+            ),
+            child: const Icon(Icons.send, color: Colors.white, size: 21),
           ),
         ),
       ],

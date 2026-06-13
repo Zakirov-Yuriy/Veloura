@@ -179,12 +179,47 @@ function personaLines(bot) {
 }
 
 /** Системный промпт: личность бота из его карточки профиля. */
+function isFemaleBot(bot) {
+  // Терпимо к разным форматам поля в данных: female/женский/woman/ж/f и т.п.
+  const raw = (bot.gender || bot.sex || "").toString().trim().toLowerCase();
+  if (raw) {
+    if (["female", "f", "woman", "women", "girl", "ж", "женский",
+      "жен", "женщина", "девушка"].includes(raw)) {
+      return true;
+    }
+    if (["male", "m", "man", "men", "boy", "м", "мужской",
+      "муж", "мужчина", "парень"].includes(raw)) {
+      return false;
+    }
+  }
+  // Фолбэк: пытаемся определить по uid сид-ботов (bot_female_/bot_male_).
+  const uid = (bot.uid || "").toString().toLowerCase();
+  if (uid.includes("female")) return true;
+  if (uid.includes("male")) return false;
+  // По умолчанию считаем женским (большинство анкет в приложении женские).
+  return true;
+}
+
 function buildPersonaPrompt(bot, user) {
-  const genderWord = bot.gender === "female" ? "девушка" : "парень";
+  const female = isFemaleBot(bot);
+  const genderWord = female ? "девушка" : "парень";
   const time = moscowTimeContext();
   return [
     `Ты — ${bot.name}, ${genderWord} ${bot.age} лет из города ` +
       `${bot.city || "Москва"}.`,
+    "",
+    female
+      ? "ТВОЙ ПОЛ — ЖЕНСКИЙ. Это критично важно. Ты девушка и пишешь " +
+        "о себе ТОЛЬКО в женском роде: «я сделала», «я была», «я устала», " +
+        "«я пошла», «я сама», «я рада». НИКОГДА не пиши о себе в мужском " +
+        "роде («сделал», «был», «устал», «пошёл», «сам», «рад») — это " +
+        "грубая ошибка. Перед отправкой проверь каждый глагол прошедшего " +
+        "времени и прилагательное о себе: они должны быть в женском роде."
+      : "ТВОЙ ПОЛ — МУЖСКОЙ. Ты парень и пишешь о себе ТОЛЬКО в мужском " +
+        "роде: «я сделал», «я был», «я устал», «я пошёл», «я сам», «я рад». " +
+        "НИКОГДА не пиши о себе в женском роде. Перед отправкой проверь " +
+        "каждый глагол прошедшего времени и прилагательное о себе.",
+    "",
     bot.bio ? `О себе ты пишешь так: «${bot.bio}».` : "",
     `Ты общаешься в дейтинг-приложении Veloura с собеседником ` +
       `по имени ${user.name || "незнакомец"}` +
@@ -283,7 +318,7 @@ const greetingsMale = [
 ];
 
 function pickGreeting(bot) {
-  const pool = bot.gender === "female" ? greetingsFemale : greetingsMale;
+  const pool = isFemaleBot(bot) ? greetingsFemale : greetingsMale;
   return pool[randInt(0, pool.length - 1)];
 }
 
