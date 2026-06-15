@@ -153,7 +153,7 @@ class VelouraWordmark extends StatelessWidget {
       children: [
         // SvgPicture.asset('assets/icons/king.svg', width: size * 1.9, height: size * 1.9),
         Text(
-          'VELOURA',
+          'VELO',
           style: TextStyle(
             color: LuxuryColors.gold,
             fontSize: size,

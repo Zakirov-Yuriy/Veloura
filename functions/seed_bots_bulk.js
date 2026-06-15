@@ -73,6 +73,59 @@ const bioClosers = [
 ];
 
 // ---------------------------------------------------------------------------
+// Пулы внешности
+// ---------------------------------------------------------------------------
+
+const femaleHair = [
+  "тёмно-русые, до плеч", "светлые, длинные", "каштановые, короткое каре",
+  "чёрные, прямые", "рыжеватые, волнистые", "пепельные, средней длины",
+  "светло-русые, прямые", "тёмные, собранные в хвост",
+];
+const maleHair = [
+  "тёмные, короткие", "русые, средней длины", "чёрные, аккуратные",
+  "светлые, коротко стрижен", "каштановые с небольшой волной",
+];
+const femaleEyes = ["карие", "голубые", "серые", "зелёные", "серо-зелёные", "тёмно-карие"];
+const maleEyes  = ["карие", "серые", "голубые", "зелёные", "тёмно-карие"];
+const femaleBuild = ["стройная", "хрупкая", "спортивная", "среднего телосложения"];
+const maleBuild   = ["спортивное", "среднее телосложение", "подтянутое", "высокий и стройный"];
+const femaleStyle = [
+  "casual: джинсы и лёгкие топы", "минимализм, чёрное и белое",
+  "романтичный: платья и блузки", "спортивный шик",
+  "что-то среднее между casual и smart", "всегда в кроссовках",
+];
+const maleStyle = [
+  "джинсы и базовые футболки", "спортивный: худи и кроссовки",
+  "smart casual: рубашки, чинос", "минимализм, нейтральные цвета",
+  "всегда в кедах, что бы ни было", "куртка и джинсы — базовый комплект",
+];
+
+const femaleHeights = ["160 см", "163 см", "165 см", "167 см", "169 см", "170 см", "172 см", "173 см"];
+const maleHeights   = ["174 см", "176 см", "178 см", "180 см", "182 см", "184 см", "186 см"];
+
+function makeAppearance(gender) {
+  if (gender === "female") {
+    return {
+      height: pick(femaleHeights),
+      build:  pick(femaleBuild),
+      hair:   pick(femaleHair),
+      eyes:   pick(femaleEyes),
+      style:  pick(femaleStyle),
+    };
+  } else {
+    return {
+      height: pick(maleHeights),
+      build:  pick(maleBuild),
+      hair:   pick(maleHair),
+      eyes:   pick(maleEyes),
+      style:  pick(maleStyle),
+    };
+  }
+}
+
+
+
+// ---------------------------------------------------------------------------
 
 const randInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -105,6 +158,7 @@ function makeBot(index) {
     city: pick(cities),
     bio: makeBio(),
     photoUrls: [photoFor(gender, index)],
+    appearance: makeAppearance(gender),
   };
 }
 
@@ -133,6 +187,7 @@ async function seed() {
         city: bot.city,
         bio: bot.bio,
         photoUrls: bot.photoUrls,
+        appearance: bot.appearance || null,
         minAge: 18,
         maxAge: 60,
         profileCompleted: true,

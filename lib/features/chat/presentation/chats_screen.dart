@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -55,6 +56,19 @@ class ChatsScreen extends ConsumerWidget {
                         final ou = Map<String, dynamic>.from(c['otherUser'] ?? {});
                         return !blocked.contains(ou['uid']);
                       }).toList();
+
+                      // Сортировка: сначала самые свежие (по updatedAt).
+                      // Страховка для чатов, у которых updatedAt ещё не выставлен.
+                      visibleChats.sort((a, b) {
+                        final aTs = a['updatedAt'];
+                        final bTs = b['updatedAt'];
+                        if (aTs == null && bTs == null) return 0;
+                        if (aTs == null) return 1;
+                        if (bTs == null) return -1;
+                        final aTime = (aTs as Timestamp).toDate();
+                        final bTime = (bTs as Timestamp).toDate();
+                        return bTime.compareTo(aTime);
+                      });
                       if (visibleChats.isEmpty) return const Center(child: Text('Чатов пока нет'));
                       return ListView.separated(
                         padding: EdgeInsets.only(
@@ -74,7 +88,50 @@ class ChatsScreen extends ConsumerWidget {
                           final typingUsers = List<String>.from(chat['typingUsers'] ?? []);
                           final isOtherTyping = typingUsers.any((id) => id != currentUserId);
 
-                          return ListTile(
+                          return Dismissible(
+                            key: ValueKey(chat['id']),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Colors.redAccent.withOpacity(0.15),
+                              child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 26),
+                            ),
+                            confirmDismiss: (_) async {
+                              return await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1B1B1B),
+                                  title: const Text('Удалить чат?', style: TextStyle(color: Colors.white)),
+                                  content: const Text(
+                                    'Чат исчезнет у вас. Если собеседник его не удалит — у него останется.',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Отмена', style: TextStyle(color: Colors.white70)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+                                    ),
+                                  ],
+                                ),
+                              ) ?? false;
+                            },
+                            onDismissed: (_) async {
+                              try {
+                                await ref.read(chatRepositoryProvider).deleteChat(chat['id'] as String);
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Не удалось удалить: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(vertical: 8),
                             leading: Stack(
                               clipBehavior: Clip.none,
@@ -136,8 +193,9 @@ class ChatsScreen extends ConsumerWidget {
                                     decoration: const BoxDecoration(color: LuxuryColors.gold, shape: BoxShape.circle),
                                     child: Text(unreadCount.toString(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
                                   )
-                                : Text(index == 0 ? '12:30' : 'Вчера', style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
+                                : Text(_formatChatTime(chat['updatedAt']), style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
                             onTap: () => context.push('/chat/${chat['id']}'),
+                          ),
                           );
                         },
                       );
@@ -152,5 +210,28 @@ class ChatsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatChatTime(dynamic timestamp) {
+    if (timestamp == null) return '';
+    final dt = (timestamp as Timestamp).toDate().toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDay = DateTime(dt.year, dt.month, dt.day);
+    final diff = today.difference(msgDay).inDays;
+    if (diff == 0) {
+      final h = dt.hour.toString().padLeft(2, '0');
+      final m = dt.minute.toString().padLeft(2, '0');
+      return '$h:$m';
+    } else if (diff == 1) {
+      return 'Вчера';
+    } else if (diff < 7) {
+      const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      return days[dt.weekday - 1];
+    } else {
+      final d = dt.day.toString().padLeft(2, '0');
+      final mo = dt.month.toString().padLeft(2, '0');
+      return '$d.$mo';
+    }
   }
 }

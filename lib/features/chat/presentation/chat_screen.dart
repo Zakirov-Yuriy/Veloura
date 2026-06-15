@@ -140,14 +140,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   );
                 },
               ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                if (messageId != null) _confirmDeleteMessage(messageId);
-              },
-            ),
+            if (isMe && messageId != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _confirmDeleteMessage(messageId);
+                },
+              ),
             const SizedBox(height: 4),
           ],
         ),

@@ -291,7 +291,40 @@ class ChatRepository {
     }
   }
 
-  Future<void> markChatAsRead(String chatId) async {
+  /// Удаление чата у себя: убирает текущего пользователя из members.
+  /// Если members становится пустым — удаляет чат и все сообщения полностью.
+  Future<void> deleteChat(String chatId) async {
+    final userId = currentUserIdOrNull;
+    if (userId == null) return;
+
+    final chatDoc = await _firestore.collection('chats').doc(chatId).get();
+    if (!chatDoc.exists) return;
+
+    final members = List<String>.from(chatDoc.data()?['members'] ?? []);
+    members.remove(userId);
+
+    if (members.isEmpty) {
+      // Последний участник удалил чат — чистим всё.
+      final msgs = await _firestore
+          .collection('messages')
+          .where('chatId', isEqualTo: chatId)
+          .get();
+      final batch = _firestore.batch();
+      for (final doc in msgs.docs) {
+        batch.delete(doc.reference);
+      }
+      batch.delete(_firestore.collection('chats').doc(chatId));
+      await batch.commit();
+    } else {
+      // Второй участник ещё есть — просто убираем себя из members.
+      await _firestore.collection('chats').doc(chatId).update({
+        'members': members,
+        'unreadBy': FieldValue.arrayRemove([userId]),
+      });
+    }
+  }
+
+    Future<void> markChatAsRead(String chatId) async {
     final userId = currentUserIdOrNull;
     if (userId == null) return;
 
