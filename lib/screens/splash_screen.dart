@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 // ============================================================
 //  VELO — анимированный сплеш-экран
 //
@@ -143,9 +145,9 @@ class _VeloSplashScreenState extends State<VeloSplashScreen>
                   child: Transform.translate(
                     offset: Offset(
                         0, 18 * (1 - _seg(t, 4200, 4700, Curves.easeOut))),
-                    child: const Text(
-                      'найди свою половину',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context).splashTagline,
+                      style: const TextStyle(
                         color: _kTextMuted,
                         fontSize: 13,
                         letterSpacing: 1.5,

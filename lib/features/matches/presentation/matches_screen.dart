@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../core/i18n/bot_localization.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/presence.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
@@ -13,6 +15,7 @@ class MatchesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final matchesAsync = ref.watch(myMatchesProvider);
 
     return Scaffold(
@@ -26,7 +29,7 @@ class MatchesScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Матчи', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                    Text(l10n.matchesTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                     SvgPicture.asset('assets/icons/king.svg', width: 24, height: 24, colorFilter: const ColorFilter.mode(LuxuryColors.gold, BlendMode.srcIn)),
                   ],
                 ),
@@ -39,7 +42,7 @@ class MatchesScreen extends ConsumerWidget {
                         final ou = Map<String, dynamic>.from(m['otherUser'] ?? {});
                         return !blocked.contains(ou['uid']);
                       }).toList();
-                      if (visibleMatches.isEmpty) return const Center(child: Text('Матчей пока нет'));
+                      if (visibleMatches.isEmpty) return Center(child: Text(l10n.noMatchesYet));
                       return GridView.builder(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
@@ -54,6 +57,8 @@ class MatchesScreen extends ConsumerWidget {
                           final photos = List<String>.from(otherUser['photoUrls'] ?? []);
                           final photoUrl = photos.isNotEmpty ? photos.first : null;
                           final isOnline = isUserOnline(otherUser);
+                          // Локализованное имя бота (для живых юзеров вернёт их имя как есть).
+                          final name = context.botField(otherUser, 'name');
                           return GestureDetector(
                             onTap: () => context.push('/chat/${match['id']}'),
                             child: Column(
@@ -71,13 +76,13 @@ class MatchesScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  otherUser['name'] ?? 'Пользователь',
+                                  name.isNotEmpty ? name : l10n.user,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                                 ),
                                 Text(
-                                  isOnline ? 'Онлайн' : 'Не в сети',
+                                  isOnline ? l10n.online : l10n.offline,
                                   style: TextStyle(
                                     color: isOnline ? LuxuryColors.online : Colors.white54,
                                     fontSize: 11,

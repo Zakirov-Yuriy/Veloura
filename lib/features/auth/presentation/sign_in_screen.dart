@@ -7,6 +7,7 @@ import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/auth_validation.dart';
 import '../../../core/widgets/glow_field.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import 'providers/auth_provider.dart';
 
@@ -28,8 +29,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// Клиентская проверка перед запросом к Firebase.
   bool validateForm() {
-    final eErr = validateEmail(emailController.text);
-    final pErr = validatePassword(passwordController.text);
+    final l10n = AppLocalizations.of(context);
+    final eErr = validateEmail(emailController.text, l10n);
+    final pErr = validatePassword(passwordController.text, l10n);
     setState(() {
       emailError = eErr;
       passwordError = pErr;
@@ -38,6 +40,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> signIn() async {
+    final l10n = AppLocalizations.of(context);
     if (!validateForm()) return;
     try {
       setState(() => isLoading = true);
@@ -51,7 +54,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (mounted) context.go('/home');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final message = mapAuthError(e);
+      final message = mapAuthError(e, l10n);
       setState(() {
         // Ошибку показываем под тем полем, к которому она относится.
         if (emailErrorCodes.contains(e.code)) {
@@ -63,13 +66,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         }
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
   Future<void> signInWithGoogle() async {
+    final l10n = AppLocalizations.of(context);
     try {
       setState(() => isGoogleLoading = true);
       final isNewUser = await ref.read(authRepositoryProvider).signInWithGoogle();
@@ -82,9 +86,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } on GoogleSignInException catch (e) {
       // Пользователь закрыл окно выбора аккаунта — это не ошибка.
       if (e.code == GoogleSignInExceptionCode.canceled) return;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } finally {
       if (mounted) setState(() => isGoogleLoading = false);
     }
@@ -99,6 +103,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: LuxuryScreen(
         child: SafeArea(
@@ -112,13 +117,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   children: [
                     const VelouraWordmark(size: 31),
                     const SizedBox(height: 28),
-                    const Text('С возвращением!', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                    Text(l10n.welcomeBack, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
-                    const Text('Мы рады видеть вас снова', style: TextStyle(color: LuxuryColors.muted, fontSize: 13)),
+                    Text(l10n.gladToSeeYou, style: const TextStyle(color: LuxuryColors.muted, fontSize: 13)),
                     const SizedBox(height: 26),
                     _AuthTextField(
                       controller: emailController,
-                      hintText: 'Email или телефон',
+                      hintText: l10n.emailOrPhone,
                       errorText: emailError,
                       onChanged: (_) {
                         if (emailError != null) setState(() => emailError = null);
@@ -127,7 +132,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     const SizedBox(height: 12),
                     _AuthTextField(
                       controller: passwordController,
-                      hintText: 'Пароль',
+                      hintText: l10n.password,
                       obscureText: true,
                       suffixIcon: Icons.visibility_outlined,
                       errorText: passwordError,
@@ -139,15 +144,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       alignment: Alignment.centerRight,
                       child: GestureDetector(
                         onTap: () => context.push('/forgot-password'),
-                        child: const Padding(
-                          padding: EdgeInsets.only(top: 10, bottom: 16),
-                          child: Text('Забыли пароль?', style: TextStyle(color: LuxuryColors.gold, fontSize: 12)),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 10, bottom: 16),
+                          child: Text(l10n.forgotPassword, style: const TextStyle(color: LuxuryColors.gold, fontSize: 12)),
                         ),
                       ),
                     ),
-                    LuxuryGradientButton(title: 'Войти', onTap: signIn, loading: isLoading),
+                    LuxuryGradientButton(title: l10n.signIn, onTap: signIn, loading: isLoading),
                     const SizedBox(height: 22),
-                    const Row(children: [Expanded(child: Divider(color: Colors.white12)), Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('или', style: TextStyle(color: LuxuryColors.muted))), Expanded(child: Divider(color: Colors.white12))]),
+                    Row(children: [const Expanded(child: Divider(color: Colors.white12)), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(l10n.or, style: const TextStyle(color: LuxuryColors.muted))), const Expanded(child: Divider(color: Colors.white12))]),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -163,11 +168,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     const SizedBox(height: 24),
                     GestureDetector(
                       onTap: () => context.go('/sign-up'),
-                      child: const Text.rich(
+                      child: Text.rich(
                         TextSpan(
-                          text: 'Нет аккаунта? ',
-                          style: TextStyle(color: LuxuryColors.muted, fontSize: 13),
-                          children: [TextSpan(text: 'Зарегистрироваться', style: TextStyle(color: LuxuryColors.gold, fontWeight: FontWeight.w700))],
+                          text: l10n.noAccount,
+                          style: const TextStyle(color: LuxuryColors.muted, fontSize: 13),
+                          children: [TextSpan(text: l10n.signUp, style: const TextStyle(color: LuxuryColors.gold, fontWeight: FontWeight.w700))],
                         ),
                       ),
                     ),

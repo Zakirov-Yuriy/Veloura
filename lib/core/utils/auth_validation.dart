@@ -1,64 +1,68 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Валидаторы полей и перевод ошибок Firebase Auth на русский.
-/// Возвращают null, если значение корректно, иначе текст ошибки.
+import '../../l10n/app_localizations.dart';
+
+/// Валидаторы полей и перевод ошибок Firebase Auth.
+/// Возвращают null, если значение корректно, иначе локализованный текст.
+/// У файла нет своего context, поэтому строки приходят через [l10n],
+/// который экраны берут из AppLocalizations.of(context).
 
 final RegExp _emailRegExp = RegExp(
   r'^[\w\.\-\+]+@([\w\-]+\.)+[A-Za-z]{2,}$',
 );
 
-String? validateEmail(String value) {
+String? validateEmail(String value, AppLocalizations l10n) {
   final v = value.trim();
-  if (v.isEmpty) return 'Введите email';
-  if (!_emailRegExp.hasMatch(v)) return 'Некорректный email';
+  if (v.isEmpty) return l10n.validationEnterEmail;
+  if (!_emailRegExp.hasMatch(v)) return l10n.validationInvalidEmail;
   return null;
 }
 
-String? validatePassword(String value) {
+String? validatePassword(String value, AppLocalizations l10n) {
   final v = value.trim();
-  if (v.isEmpty) return 'Введите пароль';
-  if (v.length < 6) return 'Пароль должен быть не короче 6 символов';
+  if (v.isEmpty) return l10n.validationEnterPassword;
+  if (v.length < 6) return l10n.validationPasswordTooShort;
   return null;
 }
 
-String? validateName(String value) {
+String? validateName(String value, AppLocalizations l10n) {
   final v = value.trim();
-  if (v.isEmpty) return 'Введите имя';
-  if (v.length < 2) return 'Имя слишком короткое';
+  if (v.isEmpty) return l10n.validationEnterName;
+  if (v.length < 2) return l10n.validationNameTooShort;
   return null;
 }
 
 /// Переводит исключение Firebase Auth в понятное пользователю сообщение.
-String mapAuthError(Object error) {
+String mapAuthError(Object error, AppLocalizations l10n) {
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-email':
-        return 'Некорректный email';
+        return l10n.validationInvalidEmail;
       case 'user-not-found':
-        return 'Пользователь с таким email не найден';
+        return l10n.validationUserNotFound;
       case 'wrong-password':
-        return 'Неправильный пароль';
+        return l10n.validationWrongPassword;
       case 'invalid-credential':
-        return 'Неверный email или пароль';
+        return l10n.validationInvalidCredentials;
       case 'user-disabled':
-        return 'Этот аккаунт заблокирован';
+        return l10n.validationAccountDisabled;
       case 'email-already-in-use':
-        return 'Этот email уже зарегистрирован';
+        return l10n.validationEmailInUse;
       case 'weak-password':
-        return 'Слишком простой пароль, минимум 6 символов';
+        return l10n.validationWeakPassword;
       case 'too-many-requests':
-        return 'Слишком много попыток. Попробуйте позже';
+        return l10n.validationTooManyAttempts;
       case 'network-request-failed':
-        return 'Нет соединения с интернетом';
+        return l10n.validationNoInternet;
       case 'operation-not-allowed':
-        return 'Этот способ входа сейчас недоступен';
+        return l10n.validationMethodUnavailable;
       case 'channel-error':
-        return 'Не удалось выполнить запрос. Проверьте данные и попробуйте снова';
+        return l10n.validationRequestFailed;
       default:
-        return 'Ошибка авторизации. Попробуйте ещё раз';
+        return l10n.validationAuthError;
     }
   }
-  return 'Что-то пошло не так. Попробуйте ещё раз';
+  return l10n.validationSomethingWrong;
 }
 
 /// Коды ошибок, которые логично показывать под полем email.

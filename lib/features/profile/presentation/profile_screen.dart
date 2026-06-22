@@ -4,15 +4,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../l10n/app_localizations.dart';
+import 'widgets/language_picker.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      return const Scaffold(body: Center(child: Text('Пользователь не найден')));
+      return Scaffold(body: Center(child: Text(l10n.userNotFound)));
     }
 
     return StreamBuilder<DocumentSnapshot>(
@@ -22,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
           return const Scaffold(body: LuxuryScreen(child: Center(child: CircularProgressIndicator(color: LuxuryColors.gold))));
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Scaffold(body: LuxuryScreen(child: Center(child: Text('Профиль не найден'))));
+          return Scaffold(body: LuxuryScreen(child: Center(child: Text(l10n.profileNotFound))));
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -39,14 +42,13 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // IconButton(onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
                         IconButton(onPressed: () => context.push('/profile-setup'), icon: const Icon(Icons.edit_outlined)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Stack(
                       clipBehavior: Clip.none,
-                      children: [ 
+                      children: [
                         Container(
                           width: 156,
                           height: 156,
@@ -58,16 +60,6 @@ class ProfileScreen extends StatelessWidget {
                             child: photoUrl == null ? const Icon(Icons.person, size: 76, color: LuxuryColors.gold) : null,
                           ),
                         ),
-                        // Positioned(
-                        //   right: 2,
-                        //   bottom: 8,
-                        //   child: Container(
-                        //     width: 46,
-                        //     height: 46,
-                        //     decoration: BoxDecoration(shape: BoxShape.circle, gradient: luxuryGradient, border: Border.all(color: LuxuryColors.black, width: 3)),
-                        //     child: const Icon(Icons.workspace_premium, color: Colors.white),
-                        //   ),
-                        // ),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -75,7 +67,7 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '${data['name'] ?? 'Пользователь'}, ${data['age'] ?? ''}',
+                          '${data['name'] ?? l10n.user}, ${data['age'] ?? ''}',
                           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 6),
@@ -97,13 +89,12 @@ class ProfileScreen extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       child: Column(
                         children: [
-                          // _ProfileMenu(icon: Icons.workspace_premium, title: 'Премиум аккаунт', onTap: () {}),
-                          _ProfileMenu(icon: Icons.image_outlined, title: 'Мои фото', onTap: () => context.push('/profile-setup')),
-                          // _ProfileMenu(icon: Icons.star_border, title: 'Избранные', onTap: () {}),
-                          _ProfileMenu(icon: Icons.block, title: 'Заблокированные', onTap: () => context.push('/blocked-users')),
+                          _ProfileMenu(icon: Icons.image_outlined, title: l10n.myPhotos, onTap: () => context.push('/profile-setup')),
+                          _ProfileMenu(icon: Icons.language, title: l10n.language, onTap: () => showLanguagePicker(context)),
+                          _ProfileMenu(icon: Icons.block, title: l10n.blockedUsers, onTap: () => context.push('/blocked-users')),
                           _ProfileMenu(
                             icon: Icons.logout,
-                            title: 'Выйти',
+                            title: l10n.signOut,
                             onTap: () async {
                               await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({'isOnline': false, 'lastSeen': Timestamp.now()});
                               await FirebaseAuth.instance.signOut();
@@ -149,6 +140,7 @@ class _StatsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final firestore = FirebaseFirestore.instance;
 
     return LuxuryPanel(
@@ -157,23 +149,19 @@ class _StatsPanel extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           // Лайки, которые получил пользователь.
-          // Если нужно считать отправленные лайки, замените
-          // 'toUserId' на 'fromUserId'.
           _LiveStat(
-            label: 'Лайков',
+            label: l10n.likesCount,
             query: firestore
                 .collection('likes')
                 .where('toUserId', isEqualTo: uid),
           ),
           // Матчи: документы коллекции matches, где массив users содержит мой uid.
           _LiveStat(
-            label: 'Матчей',
+            label: l10n.matchesCount,
             query: firestore
                 .collection('matches')
                 .where('users', arrayContains: uid),
           ),
-          // Друзей: отдельной коллекции в проекте пока нет.
-          // const _Stat(value: '0', label: 'Друзей'),
         ],
       ),
     );
@@ -192,14 +180,13 @@ class _LiveStat extends StatelessWidget {
       stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          debugPrint('[$label] ОШИБКА: ${snapshot.error}');
+          debugPrint('[$label] ERROR: ${snapshot.error}');
           return _Stat(value: 'E', label: label);
         }
         if (!snapshot.hasData) {
           return _Stat(value: '...', label: label);
         }
         final count = snapshot.data!.docs.length;
-        debugPrint('[$label] найдено документов: $count');
         return _Stat(value: '$count', label: label);
       },
     );

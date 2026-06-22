@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/home_provider.dart';
+import '../../../core/i18n/bot_localization.dart';
 import '../../../core/utils/presence.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
 
 class ProfileDetailsScreen extends ConsumerStatefulWidget {
@@ -34,10 +36,17 @@ class _ProfileDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final photos =
         List<String>.from(widget.profile['photoUrls'] ?? []);
 
     final isOnline = isUserOnline(widget.profile);
+
+    // Локализованные данные анкеты (для живых юзеров — как есть).
+    final name = context.botField(widget.profile, 'name');
+    final city = context.botField(widget.profile, 'city');
+    final bio = context.botField(widget.profile, 'bio');
+    final age = widget.profile['age'] ?? '';
 
     Future<void> passUser() async {
       await ref
@@ -63,8 +72,8 @@ class _ProfileDetailsScreenState
 
         if (isMatch) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('У вас новый матч 🔥'),
+            SnackBar(
+              content: Text(l10n.newMatchExcited),
             ),
           );
         }
@@ -79,8 +88,8 @@ class _ProfileDetailsScreenState
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Жалоба отправлена'),
+          SnackBar(
+            content: Text(l10n.complaintSent),
           ),
         );
       }
@@ -97,8 +106,8 @@ class _ProfileDetailsScreenState
         context.pop();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Пользователь заблокирован'),
+          SnackBar(
+            content: Text(l10n.userBlocked),
           ),
         );
       }
@@ -106,7 +115,7 @@ class _ProfileDetailsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Анкета'),
+        title: Text(l10n.profileTitle),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -119,14 +128,14 @@ class _ProfileDetailsScreenState
               }
             },
             itemBuilder: (context) {
-              return const [
+              return [
                 PopupMenuItem(
                   value: 'report',
-                  child: Text('Пожаловаться'),
+                  child: Text(l10n.report),
                 ),
                 PopupMenuItem(
                   value: 'block',
-                  child: Text('Заблокировать'),
+                  child: Text(l10n.block),
                 ),
               ];
             },
@@ -215,7 +224,7 @@ class _ProfileDetailsScreenState
                           CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${widget.profile['name']}, ${widget.profile['age']}',
+                          '${name.isNotEmpty ? name : l10n.user}, $age',
                           style: const TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.bold,
@@ -223,7 +232,7 @@ class _ProfileDetailsScreenState
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          widget.profile['city'] ?? '',
+                          city,
                           style:
                               const TextStyle(fontSize: 20),
                         ),
@@ -237,14 +246,14 @@ class _ProfileDetailsScreenState
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              isOnline ? 'Онлайн' : 'Не в сети',
+                              isOnline ? l10n.online : l10n.offline,
                               style: const TextStyle(fontSize: 15),
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          widget.profile['bio'] ?? '',
+                          bio,
                           style:
                               const TextStyle(fontSize: 16),
                         ),
@@ -264,7 +273,7 @@ class _ProfileDetailsScreenState
                     child: ElevatedButton.icon(
                       onPressed: passUser,
                       icon: const Icon(Icons.close),
-                      label: const Text('Пропустить'),
+                      label: Text(l10n.skip),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -272,7 +281,7 @@ class _ProfileDetailsScreenState
                     child: ElevatedButton.icon(
                       onPressed: likeUser,
                       icon: const Icon(Icons.favorite),
-                      label: const Text('Лайк'),
+                      label: Text(l10n.like),
                     ),
                   ),
                 ],

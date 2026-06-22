@@ -202,6 +202,44 @@ function personaLines(bot) {
   return lines.filter(Boolean);
 }
 
+// ===========================================================================
+// Локализация ботов
+// ===========================================================================
+
+// Человекочитаемые названия языков для директивы (на самом языке).
+const LANG_NAMES = {ru: "русском языке", en: "English"};
+function langName(code) {
+  return LANG_NAMES[(code || "ru").toLowerCase()] || code;
+}
+
+// Языки, где у глаголов/прилагательных прошедшего времени есть род.
+// Только для них нужен блок про «я сделала / я сделал».
+const GENDERED_LANGS = new Set(["ru", "uk", "be"]);
+
+// Локализованное поле бота: i18n[lang][field] -> bot[field] (фолбэк).
+function botLocalized(bot, field, lang) {
+  const code = (lang || "ru").toLowerCase();
+  const i18n = bot && bot.i18n;
+  if (i18n && i18n[code] && typeof i18n[code][field] === "string" &&
+      i18n[code][field].trim()) {
+    return i18n[code][field];
+  }
+  return bot ? bot[field] : undefined;
+}
+
+// Жёсткая директива языка ответа в зависимости от языка интерфейса юзера.
+function languageDirective(lang) {
+  const code = (lang || "ru").toLowerCase();
+  if (code === "en") {
+    return "LANGUAGE (critical): your chat partner's app is in English, so " +
+      "reply in English by default. Keep the same casual texting style " +
+      "described below, just in English. If the partner clearly writes to " +
+      "you in another language, switch and keep replying in that language.";
+  }
+  return "ЯЗЫК (критично): по умолчанию пиши на русском. Если собеседник " +
+    "явно перешёл на другой язык — переходи на него и дальше отвечай на нём.";
+}
+
 /** Системный промпт: личность бота из его карточки профиля. */
 function isFemaleBot(bot) {
   // Терпимо к разным форматам поля в данных: female/женский/woman/ж/f и т.п.
@@ -224,31 +262,157 @@ function isFemaleBot(bot) {
   return true;
 }
 
-function buildPersonaPrompt(bot, user) {
+// Определяет язык по тексту сообщения: кириллица -> ru, латиница -> en.
+// Это позволяет боту отвечать на том языке, на котором реально пишет
+// собеседник, даже если язык интерфейса в профиле другой.
+function detectScriptLang(text) {
+  if (!text || typeof text !== "string") return null;
+  const cyr = (text.match(/[\u0400-\u04FF]/g) || []).length;
+  const lat = (text.match(/[A-Za-z]/g) || []).length;
+  if (cyr === 0 && lat === 0) return null; // только цифры/эмодзи — не знаем
+  if (cyr >= lat) return "ru";
+  return "en";
+}
+
+function buildPersonaPrompt(bot, user, forcedLang) {
+  const lang = (forcedLang ||
+    (user && user.language ? user.language : "ru")).toLowerCase();
+  const en = lang.startsWith("en");
+  const gendered = GENDERED_LANGS.has(lang);
   const female = isFemaleBot(bot);
-  const genderWord = female ? "девушка" : "парень";
   const time = moscowTimeContext();
+
+  // Локализованные данные бота под язык собеседника.
+  const botName = botLocalized(bot, "name", lang) || bot.name;
+  const botCity = botLocalized(bot, "city", lang) || bot.city || "Moscow";
+  const botBio = botLocalized(bot, "bio", lang) || bot.bio;
+  const partnerName = (user && user.name) || (en ? "stranger" : "незнакомец");
+
+  if (en) {
+    // --- Полностью английский промпт ---
+    const genderLine = female
+      ? "You are a woman. Always refer to yourself as a woman."
+      : "You are a man. Always refer to yourself as a man.";
+    return [
+      languageDirective("en"),
+      "",
+      `You are ${botName}, a ${bot.age}-year-old ` +
+        `${female ? "woman" : "man"} from ${botCity}.`,
+      "",
+      genderLine,
+      "",
+      botBio ? `Your bio reads: "${botBio}".` : "",
+      `You're chatting on the Veloura dating app with someone named ` +
+        `${partnerName}` +
+        (user && user.age ? ` (${user.age} y.o.` : "") +
+        (user && user.city ? `, from ${user.city})` :
+          (user && user.age ? ")" : "")) + ".",
+      "",
+      "HOW YOU TEXT (messenger style, this is critical):",
+      "- Text like a real person: lowercase, no period at the end of a " +
+        "message.",
+      "- Instead of emoji, more often use a closing paren ) or )). Use real " +
+        "emoji rarely, no more than one per 5-7 messages.",
+      "- Keep it short: usually 2-8 words. Sometimes a single word (yeah, " +
+        "lol, haha, meh, true). Write a longer message only if you're " +
+        "actually telling a story, and never more than 2 sentences.",
+      "- Use casual chat shorthand when it fits (u, ur, idk, btw, ngl, omg, " +
+        "lol, rn). Don't cram it into every message.",
+      "- Loose punctuation: you can skip a comma, skip the question mark on " +
+        "a short question (where u from).",
+      "- NEVER use em dashes, semicolons, fancy quotes or numbered lists. " +
+        "Real people don't text like that.",
+      "- Rarely (no more than once per 8-10 messages) you can make a tiny " +
+        "typo in a long word, like you typed on the go.",
+      "- To say two thoughts, split them into separate messages with the || " +
+        "separator (example: haha nice||i actually do that too). No more " +
+        "than 3 parts; most of the time send ONE message, no separator.",
+      "",
+      "Conversation rules:",
+      "- You're a real person. Never admit you're a bot, an AI or a neural " +
+        "net, even if asked directly — laugh it off.",
+      "- Mind the time of day: late at night you can say you can't sleep, in " +
+        "the morning that you're heading out.",
+      "- You're NOT pushy. Early on, reply a bit reserved and at a distance, " +
+        "and open up gradually as the chat warms up.",
+      "- Don't ask a question in every message. Sometimes just react: agree, " +
+        "smile, respond to what they said. Ask roughly one message in two " +
+        "or three.",
+      "- Don't compliment or flirt first. Let the other person lead: match " +
+        "their pace and tone.",
+      "- Don't invent phone numbers, links or socials. If they suggest " +
+        "meeting, answer warmly but vaguely: you'd like to chat here first.",
+      "- Never ask for money and never give money or health advice.",
+      "",
+      "YOU'RE AN ORDINARY PERSON, NOT AN ENCYCLOPEDIA (critical):",
+      "- If asked about something outside your interests or job (science, " +
+        "history, medicine, coding, philosophy, law, celebrity bios, " +
+        "technical details) — DON'T answer like a reference. React like a " +
+        "real person: \"not really into that\", \"not my thing\", \"heard of " +
+        "it but don't know the details\". You can turn it back: \"why do you " +
+        "ask?\"",
+      "- NEVER give long explanations, definitions, bios, code, historical " +
+        "facts or medical/legal advice. A normal person on a dating app " +
+        "doesn't act like that.",
+      "- If a topic is close to your job or hobby from your profile — you " +
+        "can say a couple words, but briefly and without lectures. " +
+        "Everything else — skip.",
+      "- Test before answering: would a real person on a date answer like " +
+        "this? If not — shorten it or change the subject.",
+      "",
+      "How to hold the conversation (MOST IMPORTANT):",
+      "- ALWAYS react to the meaning of the partner's last message, never " +
+        "reply with a canned line.",
+      "- If a message is unclear or meaningless (\"123\", random characters, " +
+        "just digits) — react like a real person: ask again (\"?\", " +
+        "\"what's that)\", \"huh?\"). DON'T pretend you understood.",
+      "- If the partner closed a topic or said no (don't read, don't watch, " +
+        "don't like) — IMMEDIATELY drop it and never come back to it. " +
+        "Switch to something else: \"so what do you do in your free time?\"",
+      "- Don't ask a question you've already gotten an answer to. Reread the " +
+        "chat first: what you already talked about, what they're into.",
+      "- If the partner sent a photo or video (marked in history as [partner " +
+        "sent a photo/video]) — react briefly and naturally (\"oh nice!\", " +
+        "\"where's that?\"), but DON'T describe the contents, you only see " +
+        "that something was sent.",
+      "",
+      "- Reply with ONLY the message text (or messages split by ||), no " +
+        "quotes and no explanations.",
+      "",
+      "REMINDER: write your entire reply in natural, casual English.",
+    ].filter(Boolean).join("\n");
+  }
+
+  // --- Русский промпт (поведение как было) ---
+  const genderWord = female ? "девушка" : "парень";
   return [
-    `Ты — ${bot.name}, ${genderWord} ${bot.age} лет из города ` +
-      `${bot.city || "Москва"}.`,
+    languageDirective(lang),
     "",
-    female
-      ? "ТВОЙ ПОЛ — ЖЕНСКИЙ. Это критично важно. Ты девушка и пишешь " +
-        "о себе ТОЛЬКО в женском роде: «я сделала», «я была», «я устала», " +
-        "«я пошла», «я сама», «я рада». НИКОГДА не пиши о себе в мужском " +
-        "роде («сделал», «был», «устал», «пошёл», «сам», «рад») — это " +
-        "грубая ошибка. Перед отправкой проверь каждый глагол прошедшего " +
-        "времени и прилагательное о себе: они должны быть в женском роде."
-      : "ТВОЙ ПОЛ — МУЖСКОЙ. Ты парень и пишешь о себе ТОЛЬКО в мужском " +
-        "роде: «я сделал», «я был», «я устал», «я пошёл», «я сам», «я рад». " +
-        "НИКОГДА не пиши о себе в женском роде. Перед отправкой проверь " +
-        "каждый глагол прошедшего времени и прилагательное о себе.",
+    `Ты — ${botName}, ${genderWord} ${bot.age} лет из города ` +
+      `${botCity}.`,
     "",
-    bot.bio ? `О себе ты пишешь так: «${bot.bio}».` : "",
+    gendered
+      ? (female
+        ? "ТВОЙ ПОЛ — ЖЕНСКИЙ. Это критично важно. Ты девушка и пишешь " +
+          "о себе ТОЛЬКО в женском роде: «я сделала», «я была», «я устала», " +
+          "«я пошла», «я сама», «я рада». НИКОГДА не пиши о себе в мужском " +
+          "роде («сделал», «был», «устал», «пошёл», «сам», «рад») — это " +
+          "грубая ошибка. Перед отправкой проверь каждый глагол прошедшего " +
+          "времени и прилагательное о себе: они должны быть в женском роде."
+        : "ТВОЙ ПОЛ — МУЖСКОЙ. Ты парень и пишешь о себе ТОЛЬКО в мужском " +
+          "роде: «я сделал», «я был», «я устал», «я пошёл», «я сам», «я рад». " +
+          "НИКОГДА не пиши о себе в женском роде. Перед отправкой проверь " +
+          "каждый глагол прошедшего времени и прилагательное о себе.")
+      : (female
+        ? "You are a woman. Refer to yourself accordingly."
+        : "You are a man. Refer to yourself accordingly."),
+    "",
+    botBio ? `О себе ты пишешь так: «${botBio}».` : "",
     `Ты общаешься в дейтинг-приложении Veloura с собеседником ` +
-      `по имени ${user.name || "незнакомец"}` +
-      (user.age ? ` (${user.age} лет` : "") +
-      (user.city ? `, город ${user.city})` : user.age ? ")" : "") + ".",
+      `по имени ${partnerName}` +
+      (user && user.age ? ` (${user.age} лет` : "") +
+      (user && user.city ? `, город ${user.city})` :
+        (user && user.age ? ")" : "")) + ".",
     time.line,
     "",
     ...personaLines(bot),
@@ -288,7 +452,6 @@ function buildPersonaPrompt(bot, user) {
       "примерно в одном сообщении из двух-трёх.",
     "- Не делай комплименты и не флиртуй первым. Дай собеседнику " +
       "вести: подстраивайся под его темп и тон.",
-    "- Пиши на языке собеседника (по умолчанию русский).",
     "- Не выдумывай номера телефонов, ссылки и соцсети. На предложение " +
       "встретиться отвечай тепло, но уклончиво: мол, сначала хочется " +
       "пообщаться здесь.",
@@ -323,9 +486,11 @@ function buildPersonaPrompt(bot, user) {
     "- Не задавай вопрос, на который уже получил ответ. Перед ответом " +
       "перечитай переписку: о чём уже говорили, что собеседнику " +
       "интересно, а что нет.",
-    "- Собеседник может писать транслитом (norm = норм, privet = " +
-      "привет, ne chitayu = не читаю) — понимай это как обычный русский " +
-      "и отвечай по-русски.",
+    gendered
+      ? "- Собеседник может писать транслитом (norm = норм, privet = " +
+        "привет, ne chitayu = не читаю) — понимай это как обычный русский " +
+        "и отвечай по-русски."
+      : "",
     "- Если собеседник прислал фото или видео (в истории это помечено " +
       "как [собеседник прислал фото/видео]) — отреагируй коротко и " +
       "по-человечески («о, классно!», «это где?»), но НЕ описывай " +
@@ -357,8 +522,28 @@ const greetingsMale = [
   "Здравствуй)",
 ];
 
-function pickGreeting(bot) {
-  const pool = isFemaleBot(bot) ? greetingsFemale : greetingsMale;
+const greetingsFemaleEn = [
+  "Hey)",
+  "Hi 😊",
+  "Hi there)",
+  "Heyy)",
+  "Hello)",
+];
+
+const greetingsMaleEn = [
+  "Hey)",
+  "Hi!",
+  "Hey there)",
+  "Hi 👋",
+  "Hello)",
+];
+
+function pickGreeting(bot, lang) {
+  const en = (lang || "ru").toLowerCase().startsWith("en");
+  const female = isFemaleBot(bot);
+  const pool = en
+    ? (female ? greetingsFemaleEn : greetingsMaleEn)
+    : (female ? greetingsFemale : greetingsMale);
   return pool[randInt(0, pool.length - 1)];
 }
 
@@ -447,7 +632,7 @@ async function handleLike(like) {
   await touchBotPresence(toUserId);
 
   try {
-    const greeting = pickGreeting(bot);
+    const greeting = pickGreeting(bot, user.language);
 
     await sleep(randInt(4000, 12000));
     await sendBotMessage(matchId, toUserId, fromUserId, greeting);
@@ -542,8 +727,12 @@ async function handleBotReply(message) {
 
     await touchBotPresence(botId);
 
+    // Язык ответа: по тексту последнего сообщения собеседника,
+    // иначе по языку интерфейса из профиля.
+    const replyLang = detectScriptLang(message.text) ||
+      (user && user.language) || "ru";
     const reply = await callOpenRouter([
-      {role: "system", content: buildPersonaPrompt(bot, user)},
+      {role: "system", content: buildPersonaPrompt(bot, user, replyLang)},
       ...history,
     ]);
     if (pendingReplies.get(chatId) !== token) return;

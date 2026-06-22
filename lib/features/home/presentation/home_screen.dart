@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import 'providers/home_provider.dart';
 import 'widgets/profile_card.dart';
 
@@ -48,7 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final isMatch = await ref.read(homeRepositoryProvider).likeUser(uid);
       if (isMatch && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('У вас новый матч')),
+          SnackBar(content: Text(AppLocalizations.of(context).newMatchTitle)),
         );
       }
     } else if (activity.direction == AxisDirection.left) {
@@ -60,6 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final profilesAsync = ref.watch(profilesProvider);
 
     return Scaffold(
@@ -92,13 +94,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text('Анкет пока нет'),
+                                  Text(l10n.noProfilesYet),
                                   const SizedBox(height: 12),
-                                  // TextButton.icon(
-                                  //   onPressed: _reload,
-                                  //   icon: const Icon(Icons.refresh, color: LuxuryColors.gold),
-                                  //   label: const Text('Обновить'),
-                                  // ),
                                 ],
                               ),
                             )
@@ -124,8 +121,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         _HomeRoundButton(icon: Icons.close, onTap: () => swiperController.swipeLeft()),
                         const SizedBox(width: 26),
-                        // _HomeRoundButton(icon: Icons.star, onTap: () {}, featured: true),
-                        // const SizedBox(width: 26),
                         _HomeRoundButton(icon: Icons.favorite, onTap: () => swiperController.swipeRight(), filled: true),
                       ],
                     ),

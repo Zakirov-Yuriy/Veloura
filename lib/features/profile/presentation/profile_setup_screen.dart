@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../domain/models/profile_model.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/widgets/glow_field.dart';
+import '../../../l10n/app_localizations.dart';
 import 'providers/cloudinary_provider.dart';
 import 'providers/profile_provider.dart';
 
@@ -182,8 +183,22 @@ class _ProfileSetupScreenState
     super.dispose();
   }
 
+  // Заголовок секции в фирменном золотом стиле.
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFD4AF37),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     const gold = Color(0xFFD4AF37);
     const darkBg = Color(0xFF1A1A1A);
 
@@ -209,10 +224,9 @@ class _ProfileSetupScreenState
                   },
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
-                // const SizedBox(width: 12),
-                const Text(
-                  'Мой профиль',
-                  style: TextStyle(
+                Text(
+                  l10n.myProfile,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 20,
@@ -221,9 +235,9 @@ class _ProfileSetupScreenState
               ],
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Фотографии',
-              style: TextStyle(
+            Text(
+              l10n.photos,
+              style: const TextStyle(
                 color: Color(0xFFD4AF37),
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -287,62 +301,32 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 28),
 
-            const Text(
-              'ИМЯ',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.nameCaps),
             const SizedBox(height: 8),
-
             _ProfileField(
               controller: nameController,
-              hint: 'Имя',
+              hint: l10n.name,
             ),
 
             const SizedBox(height: 14),
 
-            const Text(
-              'ВОЗРАСТ',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.ageCaps),
             const SizedBox(height: 8),
-
             _ProfileField(
               controller: ageController,
-              hint: 'Возраст',
+              hint: l10n.ageField,
               keyboardType: TextInputType.number,
             ),
 
             const SizedBox(height: 14),
 
-            const Text(
-              'Я',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.iAmCaps),
             const SizedBox(height: 8),
-
             GlowField(
               builder: (focusNode) => DropdownButtonFormField<String>(
                 focusNode: focusNode,
                 value: gender,
-                decoration: _inputDecoration('Пол').copyWith(
+                decoration: _inputDecoration(l10n.gender).copyWith(
                   enabledBorder: transparentInputBorder(),
                   focusedBorder: transparentInputBorder(),
                 ),
@@ -350,14 +334,14 @@ class _ProfileSetupScreenState
                 style: const TextStyle(
                   color: Colors.white,
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'male',
-                    child: Text('Мужчина'),
+                    child: Text(l10n.male),
                   ),
                   DropdownMenuItem(
                     value: 'female',
-                    child: Text('Женщина'),
+                    child: Text(l10n.female),
                   ),
                 ],
                 onChanged: (value) {
@@ -372,23 +356,13 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
-            const Text(
-              'ИЩУ',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.lookingForCaps),
             const SizedBox(height: 8),
-
             GlowField(
               builder: (focusNode) => DropdownButtonFormField<String>(
                 focusNode: focusNode,
                 value: lookingFor,
-                decoration: _inputDecoration('Кого ищу').copyWith(
+                decoration: _inputDecoration(l10n.lookingForField).copyWith(
                   enabledBorder: transparentInputBorder(),
                   focusedBorder: transparentInputBorder(),
                 ),
@@ -396,14 +370,14 @@ class _ProfileSetupScreenState
                 style: const TextStyle(
                   color: Colors.white,
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'male',
-                    child: Text('Мужчину'),
+                    child: Text(l10n.manAccusative),
                   ),
                   DropdownMenuItem(
                     value: 'female',
-                    child: Text('Женщину'),
+                    child: Text(l10n.womanAccusative),
                   ),
                 ],
                 onChanged: (value) {
@@ -418,16 +392,7 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
-            const Text(
-              'ВОЗРАСТ ПАРТНЁРА',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.partnerAgeCaps),
             const SizedBox(height: 8),
 
             Column(
@@ -480,40 +445,20 @@ class _ProfileSetupScreenState
 
             const SizedBox(height: 14),
 
-            const Text(
-              'ВАШ ГОРОД',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.yourCityCaps),
             const SizedBox(height: 8),
-
             _ProfileField(
               controller: cityController,
-              hint: 'Город',
+              hint: l10n.cityField,
             ),
 
             const SizedBox(height: 14),
 
-            const Text(
-              'О СЕБЕ',
-              style: TextStyle(
-                color: Color(0xFFD4AF37),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-
+            _sectionLabel(l10n.aboutCaps),
             const SizedBox(height: 8),
-
             _ProfileField(
               controller: bioController,
-              hint: 'О себе',
+              hint: l10n.aboutField,
               maxLines: 5,
             ),
 
@@ -541,9 +486,9 @@ class _ProfileSetupScreenState
                           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F0F0F)),
                         ),
                       )
-                    : const Text(
-                        'Сохранить профиль',
-                        style: TextStyle(
+                    : Text(
+                        l10n.saveProfile,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,

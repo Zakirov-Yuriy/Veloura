@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/bot_localization.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/presence.dart';
+import '../../../l10n/app_localizations.dart';
 import 'providers/safety_provider.dart';
 
 class BlockedUsersScreen extends ConsumerWidget {
@@ -12,6 +14,7 @@ class BlockedUsersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final blockedUsersAsync = ref.watch(blockedUsersProvider);
 
     return Scaffold(
@@ -37,9 +40,9 @@ class BlockedUsersScreen extends ConsumerWidget {
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Заблокированные',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                    Text(
+                      l10n.blockedTitle,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -48,10 +51,10 @@ class BlockedUsersScreen extends ConsumerWidget {
                   child: blockedUsersAsync.when(
                     data: (users) {
                       if (users.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: Text(
-                            'Заблокированных пользователей нет',
-                            style: TextStyle(color: LuxuryColors.muted),
+                            l10n.noBlockedUsers,
+                            style: const TextStyle(color: LuxuryColors.muted),
                           ),
                         );
                       }
@@ -66,6 +69,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                           final user = users[index];
                           final photos = List<String>.from(user['photoUrls'] ?? []);
                           final photoUrl = photos.isNotEmpty ? photos.first : null;
+                          final name = context.botField(user, 'name');
 
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -83,7 +87,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                               ),
                             ),
                             title: Text(
-                              user['name'] ?? 'Пользователь',
+                              name.isNotEmpty ? name : l10n.user,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -91,7 +95,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                               ),
                             ),
                             subtitle: Text(
-                              isUserOnline(user) ? 'Онлайн' : 'Не в сети',
+                              isUserOnline(user) ? l10n.online : l10n.offline,
                               style: TextStyle(
                                 color: isUserOnline(user) ? LuxuryColors.online : LuxuryColors.muted,
                                 fontSize: 13,
@@ -105,9 +109,9 @@ class BlockedUsersScreen extends ConsumerWidget {
 
                                 ref.invalidate(blockedUsersProvider);
                               },
-                              child: const Text(
-                                'Разблокировать',
-                                style: TextStyle(
+                              child: Text(
+                                l10n.unblock,
+                                style: const TextStyle(
                                   color: LuxuryColors.gold,
                                   fontWeight: FontWeight.w700,
                                 ),

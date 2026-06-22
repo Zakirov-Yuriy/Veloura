@@ -2,20 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/luxury_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../data/onboarding_prefs.dart';
 
 /// Описание одного слайда онбординга.
+/// Тексты (title/subtitle) теперь не хранятся здесь, а берутся из
+/// локализаций по индексу слайда — см. _slideTexts ниже.
 class _OnboardingSlide {
   final String image;
   final IconData icon;
-  final String title;
-  final String subtitle;
 
   const _OnboardingSlide({
     required this.image,
     required this.icon,
-    required this.title,
-    required this.subtitle,
   });
 }
 
@@ -23,22 +22,28 @@ const _slides = <_OnboardingSlide>[
   _OnboardingSlide(
     image: 'assets/onboarding/girl_man.png',
     icon: Icons.workspace_premium_rounded,
-    title: 'Премиальные знакомства',
-    subtitle: 'Мы создаём пространство для успешных людей',
   ),
   _OnboardingSlide(
     image: 'assets/onboarding/girl.png',
     icon: Icons.verified_user_rounded,
-    title: 'Безопасность и приватность',
-    subtitle: 'Мы проверяем каждый профиль для вашего спокойствия',
   ),
   _OnboardingSlide(
     image: 'assets/onboarding/man.png',
     icon: Icons.diamond_rounded,
-    title: 'Качество превыше всего',
-    subtitle: 'Только реальные люди и настоящие знакомства',
   ),
 ];
+
+/// Локализованные тексты слайдов по их индексу.
+(String, String) _slideTexts(AppLocalizations l10n, int index) {
+  switch (index) {
+    case 0:
+      return (l10n.onboard1Title, l10n.onboard1Body);
+    case 1:
+      return (l10n.onboard2Title, l10n.onboard2Body);
+    default:
+      return (l10n.onboard3Title, l10n.onboard3Body);
+  }
+}
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -79,6 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -90,7 +96,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _controller,
             itemCount: _slides.length,
             onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, index) => _SlideView(slide: _slides[index]),
+            itemBuilder: (context, index) => _SlideView(
+              slide: _slides[index],
+              index: index,
+            ),
           ),
 
           // Кнопка «Пропустить» сверху справа.
@@ -104,9 +113,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ignoring: _isLast,
                 child: TextButton(
                   onPressed: _finish,
-                  child: const Text(
-                    'Пропустить',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.skip,
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -144,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 const SizedBox(height: 22),
                 LuxuryGradientButton(
-                  title: _isLast ? 'Начать' : 'Далее',
+                  title: _isLast ? l10n.start : l10n.next,
                   onTap: _next,
                 ),
               ],
@@ -158,11 +167,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _SlideView extends StatelessWidget {
   final _OnboardingSlide slide;
+  final int index;
 
-  const _SlideView({required this.slide});
+  const _SlideView({required this.slide, required this.index});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final (title, subtitle) = _slideTexts(l10n, index);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -221,7 +233,7 @@ class _SlideView extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 Text(
-                  slide.title,
+                  title,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: LuxuryColors.text,
@@ -232,7 +244,7 @@ class _SlideView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  slide.subtitle,
+                  subtitle,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: LuxuryColors.muted,

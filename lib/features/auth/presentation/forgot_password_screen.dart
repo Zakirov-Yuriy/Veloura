@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/auth_validation.dart';
 import '../../../core/widgets/glow_field.dart';
+import '../../../l10n/app_localizations.dart';
 import 'providers/auth_provider.dart';
 
 /// Экран восстановления пароля.
@@ -27,7 +28,8 @@ class _ForgotPasswordScreenState
   String? emailError;
 
   Future<void> sendResetEmail() async {
-    final err = validateEmail(emailController.text);
+    final l10n = AppLocalizations.of(context);
+    final err = validateEmail(emailController.text, l10n);
     if (err != null) {
       setState(() => emailError = err);
       return;
@@ -46,10 +48,10 @@ class _ForgotPasswordScreenState
       if (e.code == 'user-not-found') {
         setState(() => emailSent = true);
       } else {
-        setState(() => emailError = mapAuthError(e));
+        setState(() => emailError = mapAuthError(e, l10n));
       }
     } catch (e) {
-      if (mounted) setState(() => emailError = mapAuthError(e));
+      if (mounted) setState(() => emailError = mapAuthError(e, l10n));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -81,20 +83,21 @@ class _ForgotPasswordScreenState
   }
 
   Widget _buildForm() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const VelouraWordmark(size: 31),
         const SizedBox(height: 28),
-        const Text(
-          'Забыли пароль?',
-          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+        Text(
+          l10n.forgotPassword,
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Укажите email, и мы отправим ссылку для сброса пароля',
+        Text(
+          l10n.resetSubtitle,
           textAlign: TextAlign.center,
-          style: TextStyle(color: LuxuryColors.muted, fontSize: 13),
+          style: const TextStyle(color: LuxuryColors.muted, fontSize: 13),
         ),
         const SizedBox(height: 26),
         Column(
@@ -133,21 +136,21 @@ class _ForgotPasswordScreenState
         ),
         const SizedBox(height: 20),
         LuxuryGradientButton(
-          title: 'Отправить ссылку',
+          title: l10n.sendLink,
           onTap: sendResetEmail,
           loading: isLoading,
         ),
         const SizedBox(height: 22),
         GestureDetector(
           onTap: () => context.go('/sign-in'),
-          child: const Text.rich(
+          child: Text.rich(
             TextSpan(
-              text: 'Вспомнили пароль? ',
-              style: TextStyle(color: LuxuryColors.muted, fontSize: 13),
+              text: l10n.rememberedPassword,
+              style: const TextStyle(color: LuxuryColors.muted, fontSize: 13),
               children: [
                 TextSpan(
-                  text: 'Войти',
-                  style: TextStyle(
+                  text: l10n.signIn,
+                  style: const TextStyle(
                     color: LuxuryColors.gold,
                     fontWeight: FontWeight.w700,
                   ),
@@ -161,6 +164,7 @@ class _ForgotPasswordScreenState
   }
 
   Widget _buildSuccess() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -183,15 +187,13 @@ class _ForgotPasswordScreenState
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'Проверьте почту',
-          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+        Text(
+          l10n.checkEmailTitle,
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Text(
-          'Если аккаунт с адресом ${emailController.text.trim()} существует, '
-          'мы отправили на него письмо со ссылкой для сброса пароля. '
-          'Не забудьте заглянуть в папку «Спам».',
+          l10n.checkEmailBody(emailController.text.trim()),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: LuxuryColors.muted,
@@ -201,15 +203,15 @@ class _ForgotPasswordScreenState
         ),
         const SizedBox(height: 26),
         LuxuryGradientButton(
-          title: 'Вернуться ко входу',
+          title: l10n.backToSignIn,
           onTap: () => context.go('/sign-in'),
         ),
         const SizedBox(height: 14),
         GestureDetector(
           onTap: () => setState(() => emailSent = false),
-          child: const Text(
-            'Отправить ещё раз',
-            style: TextStyle(color: LuxuryColors.gold, fontSize: 13),
+          child: Text(
+            l10n.sendAgain,
+            style: const TextStyle(color: LuxuryColors.gold, fontSize: 13),
           ),
         ),
       ],

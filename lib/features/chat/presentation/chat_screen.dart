@@ -20,6 +20,8 @@ import '../../../core/utils/presence.dart';
 import '../../profile/presentation/providers/cloudinary_provider.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
 import 'providers/chat_provider.dart';
+import '../../../core/i18n/bot_localization.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -60,7 +62,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Жалоба отправлена')),
+        SnackBar(content: Text(AppLocalizations.of(context).complaintSent)),
       );
     }
   }
@@ -80,7 +82,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     messenger.showSnackBar(
-      const SnackBar(content: Text('Пользователь заблокирован')),
+      SnackBar(content: Text(AppLocalizations.of(context).userBlocked)),
     );
   }
 
@@ -131,19 +133,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (hasText)
               ListTile(
                 leading: const Icon(Icons.copy, color: Colors.white70),
-                title: const Text('Копировать', style: TextStyle(color: Colors.white)),
+                title: Text(AppLocalizations.of(context).copy, style: const TextStyle(color: Colors.white)),
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: text));
                   Navigator.pop(sheetContext);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Скопировано'), duration: Duration(seconds: 1)),
+                    SnackBar(content: Text(AppLocalizations.of(context).copied), duration: const Duration(seconds: 1)),
                   );
                 },
               ),
             if (isMe && messageId != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+                title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _confirmDeleteMessage(messageId);
@@ -161,15 +163,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1B1B1B),
-        title: const Text('Удалить сообщение?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Сообщение будет удалено без возможности восстановления.',
-          style: TextStyle(color: Colors.white70),
+        title: Text(AppLocalizations.of(context).deleteMessageTitle, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          AppLocalizations.of(context).deleteMessageBody,
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Отмена', style: TextStyle(color: Colors.white70)),
+            child: Text(AppLocalizations.of(context).cancel, style: const TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () async {
@@ -182,12 +184,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Не удалось удалить: $e')),
+                    SnackBar(content: Text(AppLocalizations.of(context).deleteFailed(e.toString()))),
                   );
                 }
               }
             },
-            child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+            child: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -230,7 +232,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.photo, color: LuxuryColors.gold),
-              title: const Text('Фото из галереи', style: TextStyle(color: Colors.white)),
+              title: Text(AppLocalizations.of(context).photoFromGallery, style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _pickAndSendImage(ImageSource.gallery);
@@ -238,7 +240,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: LuxuryColors.gold),
-              title: const Text('Сделать фото', style: TextStyle(color: Colors.white)),
+              title: Text(AppLocalizations.of(context).takePhoto, style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _pickAndSendImage(ImageSource.camera);
@@ -246,7 +248,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.video_library, color: LuxuryColors.gold),
-              title: const Text('Видео из галереи', style: TextStyle(color: Colors.white)),
+              title: Text(AppLocalizations.of(context).videoFromGallery, style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _pickAndSendVideo();
@@ -284,7 +286,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (sizeMb > 95) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Видео слишком большое (максимум ~95 МБ)')),
+          SnackBar(content: Text(AppLocalizations.of(context).videoTooLarge)),
         );
       }
       return;
@@ -307,7 +309,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось отправить: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).sendFailed(e.toString()))),
         );
       }
     } finally {
@@ -329,7 +331,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось отправить голосовое: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).sendVoiceFailed(e.toString()))),
         );
       }
     } finally {
@@ -360,20 +362,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return '$h:$m';
   }
 
-  static const _months = [
-    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-  ];
+  List<String> _monthsLocalized(AppLocalizations l10n) => [
+        l10n.month1, l10n.month2, l10n.month3, l10n.month4,
+        l10n.month5, l10n.month6, l10n.month7, l10n.month8,
+        l10n.month9, l10n.month10, l10n.month11, l10n.month12,
+      ];
 
   String _formatDay(DateTime dt) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(dt.year, dt.month, dt.day);
 
-    if (day == today) return 'Сегодня';
-    if (day == today.subtract(const Duration(days: 1))) return 'Вчера';
+    if (day == today) return l10n.today;
+    if (day == today.subtract(const Duration(days: 1))) return l10n.yesterday;
 
-    final base = '${dt.day} ${_months[dt.month - 1]}';
+    final isRu = Localizations.localeOf(context).languageCode == 'ru';
+    final monthName = _monthsLocalized(l10n)[dt.month - 1];
+    final base = isRu ? '${dt.day} $monthName' : '$monthName ${dt.day}';
     return dt.year == now.year ? base : '$base ${dt.year}';
   }
 
@@ -522,11 +528,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(otherUser['name'] ?? 'Пользователь', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(context.botField(otherUser, 'name').isNotEmpty ? context.botField(otherUser, 'name') : AppLocalizations.of(context).user, style: const TextStyle(fontWeight: FontWeight.w700)),
                                       Builder(builder: (_) {
                                         final online = isUserOnline(otherUser);
                                         return Text(
-                                          online ? 'Онлайн' : 'Не в сети',
+                                          online ? AppLocalizations.of(context).online : AppLocalizations.of(context).offline,
                                           style: TextStyle(color: online ? LuxuryColors.online : Colors.white54, fontSize: 11),
                                         );
                                       }),
@@ -537,8 +543,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             ],
                           );
                         },
-                        loading: () => const Text('Чат'),
-                        error: (_, __) => const Text('Чат'),
+                        loading: () => Text(AppLocalizations.of(context).chatTitle),
+                        error: (_, __) => Text(AppLocalizations.of(context).chatTitle),
                       ),
                     ),
                     PopupMenuButton<String>(
@@ -560,14 +566,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         }
                       },
                       itemBuilder: (context) {
-                        return const [
+                        return [
                           PopupMenuItem(
                             value: 'report',
-                            child: Text('Пожаловаться'),
+                            child: Text(AppLocalizations.of(context).report),
                           ),
                           PopupMenuItem(
                             value: 'block',
-                            child: Text('Заблокировать'),
+                            child: Text(AppLocalizations.of(context).block),
                           ),
                         ];
                       },
@@ -578,7 +584,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Expanded(
                 child: messagesAsync.when(
                   data: (messages) {
-                    if (messages.isEmpty) return const Center(child: Text('Напишите первое сообщение'));
+                    if (messages.isEmpty) return Center(child: Text(AppLocalizations.of(context).writeFirstMessage));
                     return ListView.builder(
                       reverse: true,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -850,10 +856,10 @@ class _UserProfileSheetState extends State<_UserProfileSheet> {
   Widget build(BuildContext context) {
     final user = widget.user;
     final photos = List<String>.from(user['photoUrls'] ?? []);
-    final name = (user['name'] ?? 'Пользователь').toString();
+    final name = context.botField(user, 'name').isNotEmpty ? context.botField(user, 'name') : AppLocalizations.of(context).user;
     final age = user['age'];
-    final city = (user['city'] ?? '').toString();
-    final bio = (user['bio'] ?? '').toString();
+    final city = context.botField(user, 'city');
+    final bio = context.botField(user, 'bio');
     final online = isUserOnline(user);
 
     final title = age != null && age.toString().isNotEmpty ? '$name, $age' : name;
@@ -995,7 +1001,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                online ? 'Онлайн' : 'Не в сети',
+                                online ? AppLocalizations.of(context).online : AppLocalizations.of(context).offline,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -1046,11 +1052,11 @@ class _UserProfileSheetState extends State<_UserProfileSheet> {
 
               // Bio
               if (bio.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(18, 18, 18, 6),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
                   child: Text(
-                    'О себе',
-                    style: TextStyle(
+                    AppLocalizations.of(context).aboutField,
+                    style: const TextStyle(
                       color: LuxuryColors.gold,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -1187,7 +1193,7 @@ class _ChatInputBarState extends State<_ChatInputBar> {
     if (!hasPermission) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Нет доступа к микрофону')),
+          SnackBar(content: Text(AppLocalizations.of(context).noMicAccess)),
         );
       }
       return;
@@ -1233,7 +1239,7 @@ class _ChatInputBarState extends State<_ChatInputBar> {
       });
       if (mounted && duration.inMilliseconds < 800) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Слишком короткая запись')),
+          SnackBar(content: Text(AppLocalizations.of(context).recordingTooShort)),
         );
       }
       return;
@@ -1399,10 +1405,10 @@ class _ChatInputBarState extends State<_ChatInputBar> {
                   buttonColor: Color(0xFF1B1B1B),
                   buttonIconColor: Colors.white54,
                 ),
-                searchViewConfig: const SearchViewConfig(
-                  backgroundColor: Color(0xFF1B1B1B),
+                searchViewConfig: SearchViewConfig(
+                  backgroundColor: const Color(0xFF1B1B1B),
                   buttonIconColor: Colors.white54,
-                  hintText: 'Поиск',
+                  hintText: AppLocalizations.of(context).search,
                 ),
                 skinToneConfig: const SkinToneConfig(
                   dialogBackgroundColor: Color(0xFF1B1B1B),
@@ -1458,12 +1464,12 @@ class _ChatInputBarState extends State<_ChatInputBar> {
                     onTap: () {
                       if (_showEmoji) setState(() => _showEmoji = false);
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Сообщение',
-                      hintStyle: TextStyle(color: LuxuryColors.muted),
+                      hintText: AppLocalizations.of(context).messageHint,
+                      hintStyle: const TextStyle(color: LuxuryColors.muted),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -1554,12 +1560,12 @@ class _ChatInputBarState extends State<_ChatInputBar> {
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: 14),
+            padding: const EdgeInsets.only(left: 14),
             child: Text(
-              'Идёт запись…',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
+              AppLocalizations.of(context).recording,
+              style: const TextStyle(color: Colors.white54, fontSize: 14),
             ),
           ),
         ),
@@ -1815,7 +1821,7 @@ class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось загрузить голосовое')),
+          SnackBar(content: Text(AppLocalizations.of(context).voiceLoadFailed)),
         );
       }
     } finally {

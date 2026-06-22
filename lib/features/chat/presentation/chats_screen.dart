@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/i18n/bot_localization.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/presence.dart';
 import '../../../core/widgets/glow_field.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../safety/presentation/providers/safety_provider.dart';
 import 'providers/chat_provider.dart';
 
@@ -15,6 +17,7 @@ class ChatsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final chatsAsync = ref.watch(myChatsProvider);
     final currentUserId = ref.read(chatRepositoryProvider).currentUserId;
 
@@ -31,7 +34,7 @@ class ChatsScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Чаты', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                    Text(l10n.chatsTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                     SvgPicture.asset('assets/icons/king.svg', width: 24, height: 24, colorFilter: const ColorFilter.mode(LuxuryColors.gold, BlendMode.srcIn)),
                   ],
                 ),
@@ -40,7 +43,7 @@ class ChatsScreen extends ConsumerWidget {
                   builder: (focusNode) => TextField(
                     focusNode: focusNode,
                     style: const TextStyle(color: Colors.white),
-                    decoration: luxuryInputDecoration('Поиск', suffixIcon: Icons.tune).copyWith(
+                    decoration: luxuryInputDecoration(l10n.search, suffixIcon: Icons.tune).copyWith(
                       prefixIcon: const Icon(Icons.search, color: LuxuryColors.muted, size: 19),
                       enabledBorder: transparentInputBorder(),
                       focusedBorder: transparentInputBorder(),
@@ -69,7 +72,7 @@ class ChatsScreen extends ConsumerWidget {
                         final bTime = (bTs as Timestamp).toDate();
                         return bTime.compareTo(aTime);
                       });
-                      if (visibleChats.isEmpty) return const Center(child: Text('Чатов пока нет'));
+                      if (visibleChats.isEmpty) return Center(child: Text(l10n.noChatsYet));
                       return ListView.separated(
                         padding: EdgeInsets.only(
                           bottom: 104 + MediaQuery.of(context).padding.bottom,
@@ -87,6 +90,7 @@ class ChatsScreen extends ConsumerWidget {
                           final unreadCount = chat['unreadCount'] ?? 0;
                           final typingUsers = List<String>.from(chat['typingUsers'] ?? []);
                           final isOtherTyping = typingUsers.any((id) => id != currentUserId);
+                          final name = context.botField(otherUser, 'name');
 
                           return Dismissible(
                             key: ValueKey(chat['id']),
@@ -102,19 +106,19 @@ class ChatsScreen extends ConsumerWidget {
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   backgroundColor: const Color(0xFF1B1B1B),
-                                  title: const Text('Удалить чат?', style: TextStyle(color: Colors.white)),
-                                  content: const Text(
-                                    'Чат исчезнет у вас. Если собеседник его не удалит — у него останется.',
-                                    style: TextStyle(color: Colors.white70),
+                                  title: Text(l10n.deleteChatTitle, style: const TextStyle(color: Colors.white)),
+                                  content: Text(
+                                    l10n.deleteChatBody,
+                                    style: const TextStyle(color: Colors.white70),
                                   ),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Отмена', style: TextStyle(color: Colors.white70)),
+                                      child: Text(l10n.cancel, style: const TextStyle(color: Colors.white70)),
                                     ),
                                     TextButton(
                                       onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+                                      child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent)),
                                     ),
                                   ],
                                 ),
@@ -126,7 +130,7 @@ class ChatsScreen extends ConsumerWidget {
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Не удалось удалить: $e')),
+                                    SnackBar(content: Text(l10n.deleteFailed(e.toString()))),
                                   );
                                 }
                               }
@@ -165,7 +169,7 @@ class ChatsScreen extends ConsumerWidget {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    otherUser['name'] ?? 'Пользователь',
+                                    name.isNotEmpty ? name : l10n.user,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -173,7 +177,7 @@ class ChatsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isOnline ? 'Онлайн' : 'Не в сети',
+                                  isOnline ? l10n.online : l10n.offline,
                                   style: TextStyle(
                                     color: isOnline ? LuxuryColors.online : LuxuryColors.muted,
                                     fontSize: 11,
@@ -182,7 +186,7 @@ class ChatsScreen extends ConsumerWidget {
                               ],
                             ),
                             subtitle: Text(
-                              isOtherTyping ? 'Печатает...' : chat['lastMessage'].toString().isEmpty ? 'Новый матч' : chat['lastMessage'],
+                              isOtherTyping ? l10n.typing : chat['lastMessage'].toString().isEmpty ? l10n.newMatchShort : chat['lastMessage'],
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: isOtherTyping ? LuxuryColors.gold : LuxuryColors.muted, fontSize: 12),
@@ -193,7 +197,7 @@ class ChatsScreen extends ConsumerWidget {
                                     decoration: const BoxDecoration(color: LuxuryColors.gold, shape: BoxShape.circle),
                                     child: Text(unreadCount.toString(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
                                   )
-                                : Text(_formatChatTime(chat['updatedAt']), style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
+                                : Text(_formatChatTime(chat['updatedAt'], l10n), style: const TextStyle(color: LuxuryColors.muted, fontSize: 11)),
                             onTap: () => context.push('/chat/${chat['id']}'),
                           ),
                           );
@@ -212,7 +216,7 @@ class ChatsScreen extends ConsumerWidget {
     );
   }
 
-  String _formatChatTime(dynamic timestamp) {
+  String _formatChatTime(dynamic timestamp, AppLocalizations l10n) {
     if (timestamp == null) return '';
     final dt = (timestamp as Timestamp).toDate().toLocal();
     final now = DateTime.now();
@@ -224,9 +228,17 @@ class ChatsScreen extends ConsumerWidget {
       final m = dt.minute.toString().padLeft(2, '0');
       return '$h:$m';
     } else if (diff == 1) {
-      return 'Вчера';
+      return l10n.yesterday;
     } else if (diff < 7) {
-      const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      final days = [
+        l10n.weekdayMon,
+        l10n.weekdayTue,
+        l10n.weekdayWed,
+        l10n.weekdayThu,
+        l10n.weekdayFri,
+        l10n.weekdaySat,
+        l10n.weekdaySun,
+      ];
       return days[dt.weekday - 1];
     } else {
       final d = dt.day.toString().padLeft(2, '0');

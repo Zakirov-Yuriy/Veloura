@@ -7,6 +7,7 @@ import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/luxury_theme.dart';
 import '../../../core/utils/auth_validation.dart';
 import '../../../core/widgets/glow_field.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import 'providers/auth_provider.dart';
 
@@ -30,9 +31,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   /// Клиентская проверка перед запросом к Firebase.
   bool validateForm() {
-    final nErr = validateName(nameController.text);
-    final eErr = validateEmail(emailController.text);
-    final pErr = validatePassword(passwordController.text);
+    final l10n = AppLocalizations.of(context);
+    final nErr = validateName(nameController.text, l10n);
+    final eErr = validateEmail(emailController.text, l10n);
+    final pErr = validatePassword(passwordController.text, l10n);
     setState(() {
       nameError = nErr;
       emailError = eErr;
@@ -42,6 +44,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> signUp() async {
+    final l10n = AppLocalizations.of(context);
     if (!validateForm()) return;
     try {
       setState(() => isLoading = true);
@@ -56,7 +59,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (mounted) context.go('/onboarding');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final message = mapAuthError(e);
+      final message = mapAuthError(e, l10n);
       setState(() {
         // Ошибку показываем под тем полем, к которому она относится.
         if (emailErrorCodes.contains(e.code)) {
@@ -68,13 +71,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         }
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
   Future<void> signUpWithGoogle() async {
+    final l10n = AppLocalizations.of(context);
     try {
       setState(() => isGoogleLoading = true);
       final isNewUser = await ref.read(authRepositoryProvider).signInWithGoogle();
@@ -85,9 +89,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       context.go(isNewUser ? '/onboarding' : '/home');
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mapAuthError(e, l10n))));
     } finally {
       if (mounted) setState(() => isGoogleLoading = false);
     }
@@ -103,6 +107,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: LuxuryScreen(
         child: SafeArea(
@@ -116,13 +121,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   children: [
                     const VelouraWordmark(size: 29),
                     const SizedBox(height: 24),
-                    const Text('Создайте аккаунт', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    Text(l10n.createAccount, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
-                    const Text('Начните своё путешествие', style: TextStyle(color: LuxuryColors.muted, fontSize: 13)),
+                    Text(l10n.startYourJourney, style: const TextStyle(color: LuxuryColors.muted, fontSize: 13)),
                     const SizedBox(height: 22),
                     _AuthTextField(
                       controller: nameController,
-                      hintText: 'Имя',
+                      hintText: l10n.name,
                       errorText: nameError,
                       onChanged: (_) {
                         if (nameError != null) setState(() => nameError = null);
@@ -140,7 +145,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     const SizedBox(height: 12),
                     _AuthTextField(
                       controller: passwordController,
-                      hintText: 'Пароль',
+                      hintText: l10n.password,
                       obscureText: true,
                       suffixIcon: Icons.visibility_outlined,
                       errorText: passwordError,
@@ -149,24 +154,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    // Row(
-                    //   children: [
-                    //     Container(width: 17, height: 17, decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white24))),
-                    //     const SizedBox(width: 8),
-                    //     const Expanded(child: Text('Я принимаю условия использования и политику конфиденциальности', style: TextStyle(color: LuxuryColors.muted, fontSize: 11))),
-                    //   ],
-                    // ),
                     const SizedBox(height: 16),
-                    LuxuryGradientButton(title: 'Зарегистрироваться', onTap: signUp, loading: isLoading),
+                    LuxuryGradientButton(title: l10n.signUp, onTap: signUp, loading: isLoading),
                     const SizedBox(height: 18),
-                    const Row(children: [Expanded(child: Divider(color: Colors.white12)), Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('или', style: TextStyle(color: LuxuryColors.muted))), Expanded(child: Divider(color: Colors.white12))]),
+                    Row(children: [const Expanded(child: Divider(color: Colors.white12)), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(l10n.or, style: const TextStyle(color: LuxuryColors.muted))), const Expanded(child: Divider(color: Colors.white12))]),
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        // const Expanded(
-                        //   child: _SocialButton(icon: Icons.apple),
-                        // ),
-                        // const SizedBox(width: 12),
                         Expanded(
                           child: _SocialButton(
                             imagePath: 'assets/icons/google.png',
@@ -179,7 +173,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () => context.go('/sign-in'),
-                      child: const Text.rich(TextSpan(text: 'Уже есть аккаунт? ', style: TextStyle(color: LuxuryColors.muted, fontSize: 13), children: [TextSpan(text: 'Войти', style: TextStyle(color: LuxuryColors.gold, fontWeight: FontWeight.w700))])),
+                      child: Text.rich(TextSpan(text: l10n.haveAccount, style: const TextStyle(color: LuxuryColors.muted, fontSize: 13), children: [TextSpan(text: l10n.signIn, style: const TextStyle(color: LuxuryColors.gold, fontWeight: FontWeight.w700))])),
                     ),
                   ],
                 ),
@@ -238,8 +232,6 @@ class _AuthTextFieldState extends State<_AuthTextField> {
 
     final hasError = widget.errorText != null;
 
-    // Текст ошибки рисуем ВНЕ GlowField, иначе градиентная рамка
-    // обернёт и поле, и подпись с ошибкой вместе.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
