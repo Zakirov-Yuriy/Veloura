@@ -866,9 +866,9 @@ class _UserProfileSheetState extends State<_UserProfileSheet> {
         return Container(
           decoration: const BoxDecoration(
             color: LuxuryColors.black,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             border: Border(
-              top: BorderSide(color: LuxuryColors.gold, width: 1.5),
+              top: BorderSide(color: LuxuryColors.gold, width: 1.0),
             ),
           ),
           clipBehavior: Clip.antiAlias,
