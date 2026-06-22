@@ -20,6 +20,7 @@
  */
 
 const admin = require("firebase-admin");
+const {characterLines} = require("./bot_characters");
 
 const http = require("http");
 http.createServer((req, res) => {
@@ -275,6 +276,7 @@ function detectScriptLang(text) {
 }
 
 function buildPersonaPrompt(bot, user, forcedLang) {
+  const character = bot.character || null;
   const lang = (forcedLang ||
     (user && user.language ? user.language : "ru")).toLowerCase();
   const en = lang.startsWith("en");
@@ -308,6 +310,7 @@ function buildPersonaPrompt(bot, user, forcedLang) {
         (user && user.city ? `, from ${user.city})` :
           (user && user.age ? ")" : "")) + ".",
       "",
+      ...characterLines(character, true),
       "HOW YOU TEXT (messenger style, this is critical):",
       "- Text like a real person: lowercase, no period at the end of a " +
         "message.",
@@ -415,6 +418,7 @@ function buildPersonaPrompt(bot, user, forcedLang) {
         (user && user.age ? ")" : "")) + ".",
     time.line,
     "",
+    ...characterLines(character, false),
     ...personaLines(bot),
     "КАК ТЫ ПИШЕШЬ (стиль мессенджера, это критично):",
     "- Пиши как реальный человек в телеграме: с маленькой буквы, " +
